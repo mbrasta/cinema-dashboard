@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>سینمای من | Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e50914">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- سیستم Toast پیام‌ها -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div class="dashboard-container">
+        
+        <!-- دکمه همبرگری موبایل -->
+        <button type="button" class="mobile-drawer-toggle" onclick="toggleMobileSidebar()" aria-label="منو">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <!-- overlay برای بستن کشو در موبایل -->
+        <div id="drawerOverlay" class="drawer-overlay" onclick="toggleMobileSidebar()"></div>
+
+        <!-- سایدبار قرمز: آخرین فعالیت‌ها -->
+        <aside class="sidebar-red sidebar-watched">
+            <div class="section-title">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <h2>آخرین فعالیت‌ها</h2>
+            </div>
+            
+            <div class="filter-box">
+                <input type="search" id="filterInput" onkeyup="filterMovies()" placeholder="🔍 جستجو در لیست..." autocomplete="off">
+                <select id="sortSelect" onchange="sortMovies()">
+                    <option value="newest">جدیدترین</option>
+                    <option value="rating">بیشترین امتیاز</option>
+                    <option value="title">حروف الفبا</option>
+                </select>
+            </div>
+
+            <div id="watchedList" class="recent-list"></div>
+        </aside>
+
+        <div class="main-right-wrapper">
+            
+            <!-- هدر و نوار ناوبری -->
+            <header class="header-green top-header">
+                <nav class="nav-shortcuts">
+                    <button type="button" id="tabNav-search" class="nav-btn nav-link active" onclick="switchTab('search')">
+                        <i class="fa-solid fa-magnifying-glass"></i> <span class="nav-text">جستجو</span>
+                    </button>
+                    <button type="button" id="tabNav-watching" class="nav-btn nav-link" onclick="switchTab('watching')">
+                        <i class="fa-solid fa-play"></i> <span class="nav-text">در حال تماشا</span>
+                    </button>
+                    <button type="button" id="tabNav-watched" class="nav-btn nav-link" onclick="switchTab('watched')">
+                        <i class="fa-solid fa-check-double"></i> <span class="nav-text">دیده‌شده‌ها</span>
+                    </button>
+                    <button type="button" id="tabNav-watchlist" class="nav-btn nav-link" onclick="switchTab('watchlist')">
+                        <i class="fa-solid fa-bookmark"></i> <span class="nav-text">واچ‌لیست</span>
+                    </button>
+                    <button type="button" id="tabNav-social" class="nav-btn nav-link" onclick="switchTab('social')">
+                        <i class="fa-solid fa-user-group"></i> <span class="nav-text">دوستان</span>
+                        <span id="socialBadge" class="nav-badge hidden">0</span>
+                    </button>
+                    <button type="button" class="nav-btn btn-random" onclick="pickRandomMovie()" title="امشب چی ببینم؟">
+                        <i class="fa-solid fa-dice"></i> <span class="nav-text">پیشنهاد امشب</span>
+                    </button>
+                </nav>
+
+                <div class="user-profile">
+                    <button type="button" id="myAvatarBtn" class="my-avatar-btn hidden" onclick="openProfileSettingsModal()" title="تنظیمات پروفایل">
+                        <img id="myAvatarImg" src="" alt="عکس پروفایل">
+                    </button>
+                    <div class="user-info">
+                        <span id="displayUsername" class="user-name">کاربر مهمان</span>
+                        <span id="displayStatus" class="user-status">خوش آمدید!</span>
+                    </div>
+                    <button type="button" id="authBtn" class="auth-btn" onclick="openAuthModal()">
+                        <i class="fa-solid fa-user-plus"></i> <span class="auth-text">ورود / ثبت‌نام</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- محتوای اصلی -->
+            <main class="content-blue">
+
+                <!-- پنل خلاصه آمار -->
+                <div class="stats-bar">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-film"></i>
+                        <div><span id="statTotalMovies">0</span><label>فیلم/سریال</label></div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-star"></i>
+                        <div><span id="statAvgRating">0</span><label>میانگین امتیاز</label></div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-bookmark"></i>
+                        <div><span id="statWatchlistCount">0</span><label>در واچ‌لیست</label></div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-play"></i>
+                        <div><span id="statWatchingCount">0</span><label>در حال تماشا</label></div>
+                    </div>
+                </div>
+
+                <!-- ۱. تب جستجو -->
+                <div id="searchTab" class="tab-content">
+                    <div class="search-section">
+                        <h1 class="search-title">🎬 جستجوی فیلم و سریال</h1>
+                        <p class="search-subtitle">نام فیلم یا سریال مورد نظر خود را تایپ کنید:</p>
+
+                        <div class="search-box-wrapper search-input-container">
+                            <div class="search-box">
+                                <input type="search" id="searchInput" placeholder="مثلاً: Inception, Breaking Bad..." autocomplete="off">
+                                <button type="button" onclick="searchMovies()">
+                                    <i class="fa-solid fa-magnifying-glass"></i> جستجو
+                                </button>
+                            </div>
+                            
+                            <div id="blueSuggestionsBox" class="blue-suggestions-container hidden">
+                                <div class="results-label">نتایج پیدا شده:</div>
+                                <div id="suggestionsList" class="suggestions-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <section id="searchResultsSection" class="hidden">
+                        <h2 class="sub-heading">نتایج کامل:</h2>
+                        <div id="searchResults" class="movie-grid grid-container"></div>
+                    </section>
+                </div>
+
+                <!-- ۲. تب در حال تماشا -->
+                <div id="watchingTab" class="tab-content hidden">
+                    <h2 class="sub-heading"><i class="fa-solid fa-play"></i> در حال تماشا</h2>
+                    <div id="watchingList" class="movie-grid grid-container"></div>
+                </div>
+
+                <!-- ۳. تب دیده‌شده‌ها -->
+                <div id="watchedTab" class="tab-content hidden">
+                    <h2 class="sub-heading"><i class="fa-solid fa-check-double"></i> فیلم و سریال‌های دیده‌شده</h2>
+                    <div id="completedGrid" class="movie-grid grid-container"></div>
+                </div>
+
+                <!-- ۴. تب واچ لیست -->
+                <div id="watchlistTab" class="tab-content hidden">
+                    <h2 class="sub-heading"><i class="fa-solid fa-bookmark"></i> فیلم‌های سیو شده (Watchlist)</h2>
+                    <div id="watchlist" class="movie-grid grid-container"></div>
+                </div>
+
+                <!-- ۵. تب دوستان و چت -->
+                <div id="socialTab" class="tab-content hidden">
+                    <div class="social-layout">
+                        <div class="social-col">
+                            <h2 class="sub-heading"><i class="fa-solid fa-magnifying-glass"></i> پیدا کردن دوستان</h2>
+                            <div class="filter-box">
+                                <input type="search" id="userSearchInput" oninput="handleUserSearch()" placeholder="🔍 جستجوی نام کاربری..." autocomplete="off">
+                            </div>
+                            <div id="userSearchResults" class="user-list"></div>
+
+                            <div id="incomingRequestsSection" class="hidden">
+                                <h2 class="sub-heading"><i class="fa-solid fa-user-clock"></i> درخواست‌های دوستی</h2>
+                                <div id="incomingRequestsList" class="user-list"></div>
+                            </div>
+
+                            <h2 class="sub-heading"><i class="fa-solid fa-user-group"></i> دوستان من</h2>
+                            <div id="friendsList" class="user-list"></div>
+                        </div>
+
+                        <div class="social-col chat-col">
+                            <h2 class="sub-heading"><i class="fa-solid fa-comments"></i> گفتگوها</h2>
+                            <div id="conversationsList" class="user-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- پنل شناور ثبت و ویرایش جزئیات -->
+                <div id="purpleFloatingPanel" class="purple-floating-panel hidden">
+                    <div class="panel-right">
+                        <div class="panel-header">
+                            <h3>ثبت جزئیات تماشا</h3>
+                            <button type="button" class="btn-close" onclick="closePurplePanel()">&times;</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>وضعیت تماشا:</label>
+                            <select id="inputStatus">
+                                <option value="watching">در حال تماشا</option>
+                                <option value="watched">دیده‌ام</option>
+                                <option value="watchlist">لیست انتظار (بعداً می‌بینم)</option>
+                            </select>
+                        </div>
+
+                        <!-- فیلدهای پویا (فصل/قسمت یا دقیقه) -->
+                        <div id="dynamicInputs" class="inputs-grid"></div>
+
+                        <div class="form-group">
+                            <label>امتیاز شما (از ۱۰):</label>
+                            <input type="number" id="inputRating" min="0" max="10" step="0.5" placeholder="مثلاً 8.5">
+                        </div>
+
+                        <div class="form-group">
+                            <label>نظر / یادداشت شخصی:</label>
+                            <textarea id="inputNote" rows="3" placeholder="دیدگاه یا خلاصه یادداشت..."></textarea>
+                        </div>
+
+                        <div class="form-group form-group-checkbox">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="inputPrivate">
+                                <span>خصوصی باشد (در پروفایل عمومی من به دیگران نمایش داده نشود)</span>
+                            </label>
+                        </div>
+
+                        <div class="panel-actions-row">
+                            <button type="button" class="btn-primary-red" onclick="savePanelData()">
+                                <i class="fa-solid fa-check"></i> ذخیره تغییرات
+                            </button>
+                            <button type="button" class="btn-outline-red" onclick="closePurplePanel()">
+                                <i class="fa-solid fa-xmark"></i> انصراف
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- سمت راست پنل: پوستر و مشخصات -->
+                    <div class="panel-left">
+                        <img id="panelPoster" src="" alt="Poster" loading="eager" fetchpriority="high">
+                        <div id="panelGenreText" class="panel-genre-text"></div>
+                        <h3 id="panelTitle" class="panel-title-text">نام فیلم</h3>
+                        <div id="panelExtraInfo" class="panel-extra-info"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- مدال پیشنهاد "امشب چی ببینم؟" -->
+    <div id="randomModal" class="modal modal-backdrop hidden">
+        <div class="modal-content glass-card random-card">
+            <h3>🎲 پیشنهاد امشب شما!</h3>
+            <div class="random-movie-details">
+                <img id="randomPoster" src="" alt="پوستر" loading="eager" fetchpriority="high" decoding="async">
+                <h4 id="randomTitle">عنوان</h4>
+                <p id="randomGenre" class="badge">ژانر</p>
+                <!-- جزئیات زمان برای فیلم یا تعداد فصل/قسمت برای سریال -->
+                <div id="randomDetailsInfo" class="random-extra-badge"></div>
+            </div>
+            <div class="modal-actions" style="margin-top:15px;">
+                <button type="button" onclick="pickRandomMovie()" class="btn-save-modal">
+                    <i class="fa-solid fa-rotate"></i> یک پیشنهاد دیگه
+                </button>
+                <button type="button" onclick="closeRandomModal()" class="btn-cancel">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مدال ورود / ثبت نام -->
+    <div id="authModal" class="modal modal-backdrop hidden">
+        <div class="modal-content glass-card">
+            <h3 id="authTitle">ورود به حساب کاربری</h3>
+            <form onsubmit="event.preventDefault(); submitAuth();">
+                <input type="text" id="authUsername" placeholder="نام کاربری" autocomplete="username" style="margin-bottom:10px;">
+                
+                <div class="password-wrapper" style="margin-bottom:10px;">
+                    <input type="password" id="authPassword" placeholder="رمز عبور" autocomplete="current-password">
+                    <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility()"></i>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" id="authSubmitBtn" class="btn-save-modal btn-auth-submit">ورود</button>
+                    <button type="button" onclick="closeAuthModal()" class="btn-cancel">انصراف</button>
+                </div>
+            </form>
+            <div class="auth-toggle" style="margin-top:10px;">
+                <span id="toggleAuthText">حساب ندارید؟ <a href="#" onclick="toggleAuthMode(event)">ثبت‌نام کنید</a></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- پنجره چت -->
+    <div id="chatWindow" class="chat-window hidden">
+        <div class="chat-header">
+            <img id="chatPartnerAvatar" src="" alt="">
+            <span id="chatPartnerName" class="chat-partner-name"></span>
+            <button type="button" class="btn-close" onclick="closeChatWindow()">&times;</button>
+        </div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="پیام خود را بنویسید..." autocomplete="off" onkeydown="if(event.key==='Enter') sendChatMessage();">
+            <button type="button" class="btn-primary-red" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <!-- مدال پروفایل عمومی کاربر دیگر -->
+    <div id="publicProfileModal" class="modal modal-backdrop hidden">
+        <div class="modal-content glass-card public-profile-card">
+            <button type="button" class="btn-close" onclick="closePublicProfileModal()">&times;</button>
+            <div class="public-profile-head">
+                <img id="ppAvatar" src="" alt="" class="profile-avatar-lg">
+                <h3 id="ppUsername"></h3>
+                <p id="ppBio" class="profile-bio"></p>
+                <div id="ppFriendActions" class="profile-friend-actions"></div>
+            </div>
+            <h2 class="sub-heading"><i class="fa-solid fa-check-double"></i> فیلم‌های دیده‌شده</h2>
+            <div id="ppMovies" class="movie-grid grid-container"></div>
+        </div>
+    </div>
+
+    <!-- مدال تنظیمات پروفایل من -->
+    <div id="profileSettingsModal" class="modal modal-backdrop hidden">
+        <div class="modal-content glass-card">
+            <h3>تنظیمات پروفایل</h3>
+            <div class="profile-settings-avatar-row">
+                <img id="settingsAvatarPreview" src="" alt="" class="profile-avatar-lg">
+                <label class="btn-outline-red avatar-upload-label">
+                    <i class="fa-solid fa-camera"></i> تغییر عکس
+                    <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" hidden onchange="handleAvatarUpload(event)">
+                </label>
+            </div>
+            <div class="form-group">
+                <label>بیوگرافی:</label>
+                <textarea id="bioInput" rows="3" maxlength="300" placeholder="چند جمله درباره خودت..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-save-modal" onclick="saveBio()"><i class="fa-solid fa-check"></i> ذخیره</button>
+                <button type="button" onclick="closeProfileSettingsModal()" class="btn-cancel">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مدال تأیید حذف -->
+    <div id="confirmModal" class="modal modal-backdrop hidden">
+        <div class="modal-content glass-card confirm-box">
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> تأیید حذف</h3>
+            <p>آیا از حذف این آیتم اطمینان دارید؟</p>
+            <div class="modal-actions">
+                <button type="button" id="confirmDeleteBtn" class="btn-save-modal" style="background:#e50914;">حذف</button>
+                <button type="button" onclick="closeConfirmModal()" class="btn-cancel">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
