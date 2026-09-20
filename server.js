@@ -14,6 +14,9 @@ const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: false } });
 const PORT = process.env.PORT || 3000;
 
+const onlineSockets = new Map(); // userId -> Set(socket.id)
+function isOnline(id) { return onlineSockets.has(Number(id)); }
+
 app.use(express.json());
 
 // فایل‌های html/js/css همیشه revalidate می‌شوند (بعد از آپدیت کش قدیمی نمی‌ماند)
@@ -85,11 +88,46 @@ db.serialize(() => {
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             body TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'text',
             created_at INTEGER DEFAULT (strftime('%s','now')),
             is_read INTEGER DEFAULT 0
         )
     `);
     db.run(`CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages (sender_id, receiver_id)`);
+    db.all("PRAGMA table_info(messages)", (err, cols) => {
+        if (err || !cols) return;
+        if (!cols.map(c => c.name).includes('type')) db.run(`ALTER TABLE messages ADD COLUMN type TEXT NOT NULL DEFAULT 'text'`);
+    });
+
+    // ثبت فعالیت‌های کاربر (برای نمودار روزانه‌ی داشبورد)
+    db.run(`
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        )
+    `);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_activity_user_time ON activity_log (user_id, created_at)`);
+
+    // اجتماع: پست‌ها و پسندها
+    db.run(`
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            body TEXT NOT NULL DEFAULT '',
+            media_url TEXT NOT NULL DEFAULT '',
+            media_type TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        )
+    `);
+    db.run(`
+        CREATE TABLE IF NOT EXISTS post_likes (
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            PRIMARY KEY (post_id, user_id)
+        )
+    `);
 
     db.all("PRAGMA table_info(my_movies)", (err, columns) => {
         if (err || !columns || columns.length === 0) {
@@ -161,6 +199,11 @@ db.serialize(() => {
 /* ========================================================
    ابزارهای عمومی
 ======================================================== */
+function logActivity(userId, type) {
+    if (!userId) return;
+    db.run("INSERT INTO activity_log (user_id, type) VALUES (?, ?)", [Number(userId), type], () => {});
+}
+
 const OMDB_API_KEY = process.env.OMDB_API_KEY || '1cb71949';
 const enc = encodeURIComponent;
 
@@ -398,6 +441,7 @@ app.post('/api/auth/register', async (req, res) => {
             if (err) return res.status(400).json({ error: 'این نام کاربری قبلاً ثبت شده است.' });
             req.session.userId = Number(this.lastID);
             req.session.username = String(username);
+            logActivity(this.lastID, 'login');
             req.session.save(() => res.json({ success: true, username }));
         });
     } catch (e) {
@@ -414,6 +458,7 @@ app.post('/api/auth/login', (req, res) => {
 
         req.session.userId = Number(user.id);
         req.session.username = user.username;
+        logActivity(user.id, 'login');
         req.session.save(() => res.json({ success: true, username: user.username }));
     });
 });
@@ -489,6 +534,33 @@ app.put('/api/profile', requireAuth, (req, res) => {
 });
 
 /* ========================================================
+   آپلود عکس/گیف داخل چت
+======================================================== */
+const CHAT_UPLOAD_DIR = path.join(__dirname, 'public', 'chat_uploads');
+fs.mkdirSync(CHAT_UPLOAD_DIR, { recursive: true });
+
+const chatUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter(req, file, cb) {
+        const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.mimetype);
+        cb(ok ? null : new Error('نوع فایل مجاز نیست.'), ok);
+    }
+});
+
+app.post('/api/messages/attachment', requireAuth, chatUpload.single('file'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'فایلی ارسال نشده است.' });
+    try {
+        const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }[req.file.mimetype] || 'jpg';
+        const fileName = `c${req.session.userId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        await fs.promises.writeFile(path.join(CHAT_UPLOAD_DIR, fileName), req.file.buffer);
+        res.json({ success: true, url: `/chat_uploads/${fileName}` });
+    } catch (e) {
+        res.status(500).json({ error: 'خطا در آپلود فایل.' });
+    }
+});
+
+/* ========================================================
    جستجو و مشاهده‌ی پروفایل عمومی کاربران
 ======================================================== */
 async function getFriendStatus(myId, otherId) {
@@ -546,6 +618,7 @@ app.get('/api/users/:id', requireAuth, async (req, res) => {
                     avatar: user.avatar || '',
                     bio: user.bio || '',
                     friendStatus: friendStatus.state,
+                    online: isOnline(user.id),
                     movies: movies || []
                 });
             }
@@ -578,6 +651,7 @@ app.post('/api/friends/:id/request', requireAuth, (req, res) => {
                 [myId, otherId],
                 function (e) {
                     if (e) return res.status(400).json({ error: 'درخواست قبلاً ارسال شده است.' });
+                    logActivity(myId, 'friend');
                     notifyUser(otherId, 'friend:request', { userId: myId });
                     res.json({ success: true, state: 'pending_sent' });
                 }
@@ -631,12 +705,19 @@ app.delete('/api/friends/:id', requireAuth, (req, res) => {
 app.get('/api/friends', requireAuth, (req, res) => {
     const myId = Number(req.session.userId);
     db.all(
-        `SELECT u.id, u.username, u.avatar FROM friendships f
+        `SELECT u.id, u.username, u.avatar,
+                (SELECT body FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = u.id) ORDER BY m.id DESC LIMIT 1) AS lastMessage,
+                (SELECT type FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = u.id) ORDER BY m.id DESC LIMIT 1) AS lastMessageType,
+                (SELECT created_at FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = u.id) ORDER BY m.id DESC LIMIT 1) AS lastAt,
+                (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id AND m.receiver_id = ? AND m.is_read = 0) AS unread
+         FROM friendships f
          JOIN users u ON u.id = (CASE WHEN f.requester_id = ? THEN f.receiver_id ELSE f.requester_id END)
-         WHERE (f.requester_id = ? OR f.receiver_id = ?) AND f.status = 'accepted'`,
-        [myId, myId, myId],
+         WHERE (f.requester_id = ? OR f.receiver_id = ?) AND f.status = 'accepted'
+         ORDER BY lastAt DESC, u.id DESC`,
+        [myId, myId, myId, myId, myId, myId, myId, myId, myId, myId],
         (err, friends) => {
             if (err) return res.status(500).json({ error: err.message });
+            (friends || []).forEach(f => { f.online = isOnline(f.id); });
 
             db.all(
                 `SELECT u.id, u.username, u.avatar FROM friendships f
@@ -691,7 +772,7 @@ app.get('/api/messages/:userId', requireAuth, async (req, res) => {
     if (!(await areFriends(myId, otherId))) return res.status(403).json({ error: 'فقط با دوستان می‌توانید گفتگو کنید.' });
 
     db.all(
-        `SELECT id, sender_id, receiver_id, body, created_at FROM messages
+        `SELECT id, sender_id, receiver_id, body, type, created_at FROM messages
          WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
          ORDER BY id ASC LIMIT 200`,
         [myId, otherId, otherId, myId],
@@ -867,6 +948,190 @@ app.get('/api/featured', async (req, res) => {
 });
 
 /* ========================================================
+   نمودار فعالیت روزانه (داشبورد)
+   tz = getTimezoneOffset() مرورگر (دقیقه) تا روزها به وقت محلی کاربر شمرده شوند
+======================================================== */
+app.get('/api/activity', requireAuth, (req, res) => {
+    const userId = Number(req.session.userId);
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 60);
+    let tz = parseInt(req.query.tz, 10);
+    if (!Number.isFinite(tz) || Math.abs(tz) > 840) tz = 0;
+
+    const DAY_MS = 86400000;
+    const nowLocal = Date.now() - tz * 60000;
+    const dates = [];
+    for (let i = days - 1; i >= 0; i--) {
+        dates.push(new Date(nowLocal - i * DAY_MS).toISOString().slice(0, 10));
+    }
+    const since = Math.floor((Date.parse(dates[0] + 'T00:00:00Z') + tz * 60000) / 1000);
+
+    db.all(
+        `SELECT date(created_at - ? * 60, 'unixepoch') AS d, COUNT(*) AS n
+         FROM activity_log WHERE user_id = ? AND created_at >= ? GROUP BY d`,
+        [tz, userId, since],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const map = new Map((rows || []).map(r => [r.d, r.n]));
+            const list = dates.map(date => ({ date, count: map.get(date) || 0 }));
+            res.json({ days: list, total: list.reduce((sum, x) => sum + x.count, 0) });
+        }
+    );
+});
+
+/* ========================================================
+   اجتماع: پست، عکس و ویدیو
+======================================================== */
+const COMMUNITY_DIR = path.join(__dirname, 'public', 'community_uploads');
+fs.mkdirSync(COMMUNITY_DIR, { recursive: true });
+
+const POST_MEDIA_TYPES = {
+    'image/jpeg': { ext: 'jpg', kind: 'image' },
+    'image/png': { ext: 'png', kind: 'image' },
+    'image/webp': { ext: 'webp', kind: 'image' },
+    'image/gif': { ext: 'gif', kind: 'image' },
+    'video/mp4': { ext: 'mp4', kind: 'video' },
+    'video/webm': { ext: 'webm', kind: 'video' },
+    'video/quicktime': { ext: 'mov', kind: 'video' }
+};
+const POST_MAX_IMAGE = 8 * 1024 * 1024;
+const POST_MAX_VIDEO = 50 * 1024 * 1024;
+
+// فایل مستقیم روی دیسک ذخیره می‌شود (ویدیو در حافظه‌ی سرور نمی‌ماند)
+const postUpload = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, COMMUNITY_DIR),
+        filename: (req, file, cb) => {
+            const t = POST_MEDIA_TYPES[file.mimetype];
+            cb(null, `p${req.session.userId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${t.ext}`);
+        }
+    }),
+    limits: { fileSize: POST_MAX_VIDEO, files: 1 },
+    fileFilter(req, file, cb) {
+        if (POST_MEDIA_TYPES[file.mimetype]) cb(null, true);
+        else cb(new Error('BAD_TYPE'));
+    }
+});
+
+const POST_SELECT = `
+    SELECT p.id, p.user_id, u.username, u.avatar, p.body, p.media_url, p.media_type, p.created_at,
+           (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likes,
+           EXISTS (SELECT 1 FROM post_likes l WHERE l.post_id = p.id AND l.user_id = ?) AS liked
+    FROM posts p JOIN users u ON u.id = p.user_id
+`;
+
+function removeCommunityFile(mediaUrl) {
+    if (!mediaUrl) return;
+    const file = path.join(COMMUNITY_DIR, path.basename(mediaUrl));
+    fs.unlink(file, () => {});
+}
+
+app.get('/api/posts', requireAuth, (req, res) => {
+    const myId = Number(req.session.userId);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 30);
+    const before = parseInt(req.query.before, 10) || null;
+
+    db.all(
+        `${POST_SELECT} WHERE (? IS NULL OR p.id < ?) ORDER BY p.id DESC LIMIT ?`,
+        [myId, before, before, limit + 1],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const hasMore = rows.length > limit;
+            const posts = rows.slice(0, limit).map(r => ({ ...r, liked: !!r.liked }));
+            res.json({ posts, hasMore });
+        }
+    );
+});
+
+app.post('/api/posts', requireAuth, (req, res) => {
+    postUpload.single('media')(req, res, (uploadErr) => {
+        if (uploadErr) {
+            let msg = 'خطا در آپلود فایل.';
+            if (uploadErr.code === 'LIMIT_FILE_SIZE') msg = 'حجم فایل بیش از حد مجاز است (ویدیو حداکثر ۵۰ و عکس حداکثر ۸ مگابایت).';
+            else if (uploadErr.message === 'BAD_TYPE') msg = 'فقط عکس (JPG/PNG/WEBP/GIF) یا ویدیو (MP4/WEBM/MOV) مجاز است.';
+            return res.status(400).json({ error: msg });
+        }
+
+        const userId = Number(req.session.userId);
+        const body = String((req.body && req.body.body) || '').trim().slice(0, 1000);
+        const file = req.file;
+        const discardFile = () => { if (file) fs.unlink(file.path, () => {}); };
+
+        if (!body && !file) return res.status(400).json({ error: 'متن یا فایلی برای انتشار وارد کنید.' });
+
+        let mediaUrl = '';
+        let mediaType = '';
+        if (file) {
+            const info = POST_MEDIA_TYPES[file.mimetype];
+            if (info.kind === 'image' && file.size > POST_MAX_IMAGE) {
+                discardFile();
+                return res.status(400).json({ error: 'حجم عکس نباید بیشتر از ۸ مگابایت باشد.' });
+            }
+            mediaType = info.kind;
+            mediaUrl = `/community_uploads/${file.filename}`;
+        }
+
+        db.run(
+            "INSERT INTO posts (user_id, body, media_url, media_type) VALUES (?, ?, ?, ?)",
+            [userId, body, mediaUrl, mediaType],
+            function (err) {
+                if (err) { discardFile(); return res.status(500).json({ error: 'خطا در ذخیره‌ی پست.' }); }
+                logActivity(userId, 'post');
+                db.get(`${POST_SELECT} WHERE p.id = ?`, [userId, this.lastID], (e, row) => {
+                    if (e || !row) return res.status(500).json({ error: 'پست ذخیره شد ولی خوانده نشد.' });
+                    res.json({ success: true, post: { ...row, liked: !!row.liked } });
+                });
+            }
+        );
+    });
+});
+
+app.post('/api/posts/:id/like', requireAuth, (req, res) => {
+    const myId = Number(req.session.userId);
+    const postId = Number(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'شناسه نامعتبر است.' });
+
+    const respond = (liked) => {
+        db.get("SELECT COUNT(*) AS n FROM post_likes WHERE post_id = ?", [postId], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ liked, likes: row ? row.n : 0 });
+        });
+    };
+
+    db.get("SELECT id FROM posts WHERE id = ?", [postId], (err, post) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!post) return res.status(404).json({ error: 'پست پیدا نشد.' });
+
+        db.run("INSERT OR IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)", [postId, myId], function (e) {
+            if (e) return res.status(500).json({ error: e.message });
+            if (this.changes > 0) {
+                logActivity(myId, 'like');
+                return respond(true);
+            }
+            // قبلاً پسندیده بود → برداشتن پسند
+            db.run("DELETE FROM post_likes WHERE post_id = ? AND user_id = ?", [postId, myId], (e2) => {
+                if (e2) return res.status(500).json({ error: e2.message });
+                respond(false);
+            });
+        });
+    });
+});
+
+app.delete('/api/posts/:id', requireAuth, (req, res) => {
+    const myId = Number(req.session.userId);
+    const postId = Number(req.params.id);
+    db.get("SELECT media_url FROM posts WHERE id = ? AND user_id = ?", [postId, myId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'پست پیدا نشد.' });
+        db.run("DELETE FROM posts WHERE id = ?", [postId], (e) => {
+            if (e) return res.status(500).json({ error: e.message });
+            db.run("DELETE FROM post_likes WHERE post_id = ?", [postId], () => {});
+            removeCommunityFile(row.media_url);
+            res.json({ success: true });
+        });
+    });
+});
+
+/* ========================================================
    لیست شخصی کاربر
 ======================================================== */
 app.get('/api/movies', requireAuth, (req, res) => {
@@ -920,6 +1185,7 @@ app.post('/api/movies', requireAuth, (req, res) => {
 
     db.run(query, [userId, m_id, m_title, m_poster, m_type, m_status, m_season, m_episode, m_total_seasons, m_total_episodes, m_minute, m_rating, m_note, m_genre, m_runtime, m_is_private], function (err) {
         if (err) return res.status(500).json({ error: err.message });
+        logActivity(userId, 'movie');
         res.json({ success: true });
     });
 });
@@ -928,6 +1194,7 @@ app.delete('/api/movies/:id', requireAuth, (req, res) => {
     const userId = Number(req.session.userId);
     db.run("DELETE FROM my_movies WHERE user_id = ? AND movie_id = ?", [userId, req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
+        if (this.changes > 0) logActivity(userId, 'movie');
         res.json({ success: true });
     });
 });
@@ -935,10 +1202,19 @@ app.delete('/api/movies/:id', requireAuth, (req, res) => {
 /* ========================================================
    چت زنده (Socket.IO)
 ======================================================== */
-const onlineSockets = new Map(); // userId -> Set(socket.id)
-
 function notifyUser(userId, event, payload) {
     io.to(`user:${userId}`).emit(event, payload);
+}
+
+function getFriendIds(userId) {
+    return new Promise((resolve) => {
+        db.all(
+            `SELECT (CASE WHEN requester_id = ? THEN receiver_id ELSE requester_id END) AS fid
+             FROM friendships WHERE (requester_id = ? OR receiver_id = ?) AND status = 'accepted'`,
+            [userId, userId, userId],
+            (err, rows) => resolve(err ? [] : rows.map(r => r.fid))
+        );
+    });
 }
 
 io.use((socket, next) => {
@@ -947,28 +1223,40 @@ io.use((socket, next) => {
     next(new Error('unauthorized'));
 });
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     const userId = Number(socket.request.session.userId);
     socket.join(`user:${userId}`);
 
+    const wasOffline = !onlineSockets.has(userId);
     if (!onlineSockets.has(userId)) onlineSockets.set(userId, new Set());
     onlineSockets.get(userId).add(socket.id);
+
+    if (wasOffline) {
+        const friendIds = await getFriendIds(userId);
+        friendIds.forEach(fid => notifyUser(fid, 'presence:update', { userId, online: true }));
+    }
 
     socket.on('chat:send', async (payload, ack) => {
         try {
             const receiverId = Number(payload && payload.receiverId);
-            const body = String((payload && payload.body) || '').trim().slice(0, 2000);
+            const type = (payload && payload.type === 'image') ? 'image' : 'text';
+            let body = String((payload && payload.body) || '').trim().slice(0, 2000);
+            if (type === 'image') {
+                // برای پیام تصویری، body باید یک مسیر آپلودشده معتبر از سرور خودمان باشد
+                if (!body.startsWith('/chat_uploads/')) return ack && ack({ error: 'پیام تصویری نامعتبر است.' });
+            }
             if (!receiverId || !body) return ack && ack({ error: 'پیام نامعتبر است.' });
 
             const isFriend = await areFriends(userId, receiverId);
             if (!isFriend) return ack && ack({ error: 'فقط با دوستان می‌توانید گفتگو کنید.' });
 
             db.run(
-                "INSERT INTO messages (sender_id, receiver_id, body) VALUES (?, ?, ?)",
-                [userId, receiverId, body],
+                "INSERT INTO messages (sender_id, receiver_id, body, type) VALUES (?, ?, ?, ?)",
+                [userId, receiverId, body, type],
                 function (err) {
                     if (err) return ack && ack({ error: 'خطا در ارسال پیام.' });
-                    const msg = { id: this.lastID, sender_id: userId, receiver_id: receiverId, body, created_at: Math.floor(Date.now() / 1000) };
+                    logActivity(userId, 'chat');
+                    const msg = { id: this.lastID, sender_id: userId, receiver_id: receiverId, body, type, created_at: Math.floor(Date.now() / 1000) };
                     io.to(`user:${receiverId}`).emit('chat:message', msg);
                     io.to(`user:${userId}`).emit('chat:message', msg);
                     ack && ack({ success: true, message: msg });
@@ -984,9 +1272,16 @@ io.on('connection', (socket) => {
         if (receiverId) io.to(`user:${receiverId}`).emit('chat:typing', { userId });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const set = onlineSockets.get(userId);
-        if (set) { set.delete(socket.id); if (!set.size) onlineSockets.delete(userId); }
+        if (set) {
+            set.delete(socket.id);
+            if (!set.size) {
+                onlineSockets.delete(userId);
+                const friendIds = await getFriendIds(userId);
+                friendIds.forEach(fid => notifyUser(fid, 'presence:update', { userId, online: false }));
+            }
+        }
     });
 });
 

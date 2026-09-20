@@ -12,6 +12,14 @@ let suggestSeq = 0;
 let gridSeq = 0;
 let suggestTimer = null;
 
+// وضعیت داشبورد و اجتماع
+let activeTabName = 'search';
+let dashFilter = 'all'; // all | watching | watched | watchlist
+let communityOldestId = null;
+let communityBusy = false;
+let postMediaFile = null;
+let postMediaPreviewUrl = '';
+
 // وضعیت مربوط به پروفایل/دوستان/چت
 let currentUserId = null;
 let currentUserAvatar = '';
@@ -192,7 +200,6 @@ function setupKeyboardShortcuts() {
             closeAuthModal();
             closeConfirmModal();
             closeRandomModal();
-            closeMobileSidebar();
         }
     });
 }
@@ -217,8 +224,14 @@ function setupOverlays() {
         document.body.appendChild(b);
     }
 
-    const filterInput = $('filterInput');
-    if (filterInput) filterInput.addEventListener('input', filterMovies);
+    const dashSearch = $('dashSearchInput');
+    if (dashSearch) dashSearch.addEventListener('input', refreshUI);
+    const recentSearch = $('recentSearchInput');
+    if (recentSearch) recentSearch.addEventListener('input', renderRecentList);
+    const recentSort = $('recentSortSelect');
+    if (recentSort) recentSort.addEventListener('change', renderRecentList);
+    const dashSort = $('dashSortSelect');
+    if (dashSort) dashSort.addEventListener('change', refreshUI);
 }
 
 function togglePasswordVisibility() {
@@ -236,7 +249,17 @@ function togglePasswordVisibility() {
 /* ========================================================
    تب‌ها
 ======================================================== */
+const TAB_MAP = {
+    search: 'searchTab',
+    dashboard: 'dashboardTab',
+    community: 'communityTab',
+    friends: 'friendsTab'
+};
+
 function switchTab(tabName) {
+    if (!TAB_MAP[tabName]) tabName = 'search';
+    activeTabName = tabName;
+
     document.querySelectorAll('.nav-btn').forEach((btn) => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach((tab) => tab.classList.add('hidden'));
 
@@ -245,27 +268,36 @@ function switchTab(tabName) {
     const activeBtn = $(`tabNav-${tabName}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    const tabMap = {
-        search: 'searchTab',
-        watching: 'watchingTab',
-        watched: 'watchedTab',
-        watchlist: 'watchlistTab',
-        social: 'socialTab'
-    };
-    const target = $(tabMap[tabName] || 'searchTab');
+    const target = $(TAB_MAP[tabName]);
     if (target) target.classList.remove('hidden');
 
-    if (tabName === 'social') loadSocialData();
+    refreshActiveTab();
 
     const content = document.querySelector('.content-blue');
     if (content) content.scrollTop = 0;
     window.scrollTo({ top: 0 });
-    closeMobileSidebar();
+}
+
+// محتوای تبِ فعال را (دوباره) بارگذاری می‌کند
+function refreshActiveTab() {
+    if (activeTabName === 'dashboard') { refreshUI(); loadActivity(); }
+    else if (activeTabName === 'community') loadCommunity(true);
+    else if (activeTabName === 'friends') loadSocialData();
 }
 
 function restoreLastTab() {
     let last = 'search';
-    try { last = localStorage.getItem('activeTab') || 'search'; } catch (e) {}
+    let filter = 'all';
+    try {
+        last = localStorage.getItem('activeTab') || 'search';
+        filter = localStorage.getItem('dashFilter') || 'all';
+    } catch (e) {}
+
+    // مقدارهای قدیمی که قبل از ساخت داشبورد ذخیره شده بودند
+    if (['watching', 'watched', 'watchlist'].includes(last)) { filter = last; last = 'dashboard'; }
+    else if (last === 'social') last = 'friends';
+
+    dashFilter = ['watching', 'watched', 'watchlist'].includes(filter) ? filter : 'all';
     switchTab(last);
 }
 
@@ -309,6 +341,7 @@ async function checkUserSession() {
                 await loadMyMovies();
                 initChatSocket();
                 refreshSocialBadge();
+                refreshActiveTab();
                 return;
             }
         }
@@ -331,9 +364,12 @@ function handleLoggedOutState() {
     const avatarBtn = $('myAvatarBtn');
     if (avatarBtn) avatarBtn.classList.add('hidden');
     disconnectChatSocket();
-    closeChatWindow();
+    deselectChat();
     const badge = $('socialBadge');
     if (badge) badge.classList.add('hidden');
+    resetCommunity();
+    renderActivityChart(null);
+    if (activeTabName === 'community') updateComposerState();
 }
 
 function openAuthModal() { $('authModal').classList.remove('hidden'); }
@@ -603,7 +639,6 @@ function openPurplePanel(movie) {
     $('purpleFloatingPanel').classList.remove('hidden');
     $('panelBackdrop').classList.remove('hidden');
     document.body.classList.add('no-scroll');
-    closeMobileSidebar();
 
     loadDetailsForPanel();
 }
@@ -743,6 +778,8 @@ async function saveMovie(movie_id, title, poster, type, status, season = 0, epis
             showToast('برای ذخیره‌ی دائمی لیست، وارد حساب کاربری شوید.', 'error');
         } else if (!res.ok) {
             showToast('ذخیره روی سرور انجام نشد.', 'error');
+        } else {
+            refreshActivityIfVisible();
         }
     } catch (e) {
         showToast('ارتباط با سرور برقرار نشد؛ فقط روی این دستگاه ذخیره شد.', 'error');
@@ -779,23 +816,17 @@ function updateStatistics() {
     const watchlistCount = allUserMovies.filter((m) => m.status === 'watchlist').length;
     const watchingCount = allUserMovies.filter((m) => m.status === 'watching').length;
 
-    const rated = allUserMovies.filter((m) => m.rating > 0);
-    const avg = rated.length > 0
-        ? (rated.reduce((acc, cur) => acc + cur.rating, 0) / rated.length).toFixed(1)
-        : '0';
-
     $('statTotalMovies').innerText = total;
-    $('statAvgRating').innerText = avg;
     $('statWatchlistCount').innerText = watchlistCount;
     $('statWatchingCount').innerText = watchingCount;
 }
 
 /* ========================================================
-   فیلتر + مرتب‌سازی (هر دو با هم اعمال می‌شوند)
+   فیلتر + مرتب‌سازی (جستجو، مرتب‌سازی و دکمه‌های وضعیت با هم اعمال می‌شوند)
 ======================================================== */
 function getVisibleMovies() {
-    const q = (($('filterInput') || {}).value || '').trim().toLowerCase();
-    const sort = ($('sortSelect') || {}).value || 'newest';
+    const q = (($('dashSearchInput') || {}).value || '').trim().toLowerCase();
+    const sort = ($('dashSortSelect') || {}).value || 'newest';
 
     const list = allUserMovies.filter((m) => !q || (m.title || '').toLowerCase().includes(q));
     if (sort === 'rating') list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -807,8 +838,12 @@ function refreshUI() {
     renderMovies(getVisibleMovies());
 }
 
-function filterMovies() { refreshUI(); }
-function sortMovies() { refreshUI(); }
+// کلیک روی دکمه‌ی وضعیت: همان وضعیت را نشان می‌دهد؛ کلیک دوباره = نمایش همه
+function setDashFilter(filter) {
+    dashFilter = (filter && filter !== dashFilter && ['watching', 'watched', 'watchlist'].includes(filter)) ? filter : 'all';
+    try { localStorage.setItem('dashFilter', dashFilter); } catch (e) {}
+    refreshUI();
+}
 
 /* ========================================================
    رندر کارت‌ها
@@ -869,7 +904,33 @@ function buildSidebarCard(m, c, index) {
     return card;
 }
 
-function buildGridCard(m, c, kind, index) {
+// پنل «آخرین فعالیت‌ها»: آیتم‌های در حال تماشا با میزان پیشرفت (در تب جستجو و داشبورد)
+function renderRecentList() {
+    const targets = document.querySelectorAll('.recent-list');
+    if (!targets.length) return;
+    const q = (($('recentSearchInput') || {}).value || '').trim().toLowerCase();
+    const sort = ($('recentSortSelect') || {}).value || 'newest';
+    const items = allUserMovies.filter((m) =>
+        (m.status || '').toLowerCase() === 'watching' && (!q || (m.title || '').toLowerCase().includes(q))
+    );
+    if (sort === 'rating') items.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sort === 'title') items.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+    targets.forEach((el) => {
+        el.innerHTML = '';
+        if (!items.length) {
+            el.appendChild(emptyState('fa-film', 'فعلاً چیزی در حال تماشا نیست.'));
+            return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach((m, i) => frag.appendChild(buildSidebarCard(m, buildContext(m), i)));
+        el.appendChild(frag);
+    });
+}
+
+const STATUS_LABELS = { watching: 'در حال تماشا', watched: 'دیده‌شده', watchlist: 'واچ‌لیست' };
+
+function buildGridCard(m, c, kind, index, showStatus = false) {
     const card = document.createElement('div');
     card.className = 'card';
 
@@ -883,9 +944,14 @@ function buildGridCard(m, c, kind, index) {
         ? '<button type="button" class="btn-primary-red btn-mark-watched" title="دیدم"><i class="fa-solid fa-check"></i><span class="btn-label">دیدم</span></button>'
         : '<button type="button" class="btn-primary-red btn-edit" title="ویرایش"><i class="fa-solid fa-pen-to-square"></i><span class="btn-label">ویرایش</span></button>';
 
+    const statusChip = showStatus
+        ? `<span class="type-chip status-chip status-${kind}">${STATUS_LABELS[kind] || ''}</span>`
+        : '';
+
     card.innerHTML = `
         ${posterImgHTML(m.poster, c.title, 'medium', { eager: index < 30 })}
         ${badge}
+        ${statusChip}
         <div class="card-info">
             <div class="card-title" title="${esc(c.title)}">${esc(c.title)}</div>
             ${infoExtra}
@@ -909,7 +975,8 @@ function buildGridCard(m, c, kind, index) {
             await saveMovie(
                 c.id, c.title, m.poster || '', c.type, 'watched',
                 m.season || 0, m.episode || 0, m.total_seasons || 0, m.total_episodes || 0,
-                m.minute || 0, m.rating || 0, m.note || '', m.genre || '', m.runtime || 0
+                m.minute || 0, m.rating || 0, m.note || '', m.genre || '', m.runtime || 0,
+                !!Number(m.is_private)
             );
             showToast('به لیست دیده‌شده‌ها منتقل شد.', 'success');
         };
@@ -922,48 +989,53 @@ function buildGridCard(m, c, kind, index) {
     return card;
 }
 
+const DASH_HEADINGS = {
+    all: 'همه‌ی ذخیره‌شده‌ها',
+    watching: 'در حال تماشا',
+    watched: 'فیلم و سریال‌های دیده‌شده',
+    watchlist: 'واچ‌لیست (بعداً می‌بینم)'
+};
+
+const DASH_EMPTY = {
+    all: ['fa-film', 'هنوز چیزی ذخیره نکرده‌اید. از تب «جستجو» یک فیلم یا سریال اضافه کنید.'],
+    watching: ['fa-play', 'هیچ فیلم یا سریالی در حال تماشا نیست.'],
+    watched: ['fa-check-double', 'هنوز چیزی به «دیده‌شده‌ها» اضافه نشده است.'],
+    watchlist: ['fa-bookmark', 'واچ‌لیست شما خالی است.']
+};
+
 function renderMovies(movies) {
     updateStatistics();
+    renderRecentList();
 
-    const targets = {
-        side: $('watchedList'),
-        watching: $('watchingList'),
-        watched: $('completedGrid'),
-        watchlist: $('watchlist')
-    };
-    if (!targets.side || !targets.watching || !targets.watchlist) return;
+    document.querySelectorAll('.dash-filter-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.id === `dashFilter-${dashFilter}`);
+    });
 
-    const frags = {};
-    const counts = { side: 0, watching: 0, watched: 0, watchlist: 0 };
-    Object.keys(targets).forEach((k) => { frags[k] = document.createDocumentFragment(); });
+    const grid = $('dashGrid');
+    if (!grid) return;
 
+    const frag = document.createDocumentFragment();
+    let count = 0;
     movies.forEach((m) => {
         const c = buildContext(m);
-
-        if (c.status === 'watching') {
-            frags.side.appendChild(buildSidebarCard(m, c, counts.side++));
-            frags.watching.appendChild(buildGridCard(m, c, 'watching', counts.watching++));
-        } else if (c.status === 'watched') {
-            frags.watched.appendChild(buildGridCard(m, c, 'watched', counts.watched++));
-        } else if (c.status === 'watchlist') {
-            frags.watchlist.appendChild(buildGridCard(m, c, 'watchlist', counts.watchlist++));
-        }
+        if (!STATUS_LABELS[c.status]) return;
+        if (dashFilter !== 'all' && c.status !== dashFilter) return;
+        frag.appendChild(buildGridCard(m, c, c.status, count++, dashFilter === 'all'));
     });
 
-    const emptyTexts = {
-        side: ['fa-film', 'فعلاً چیزی در حال تماشا نیست.'],
-        watching: ['fa-play', 'هیچ فیلم یا سریالی در حال تماشا نیست. از تب «جستجو» یکی اضافه کنید.'],
-        watched: ['fa-check-double', 'هنوز چیزی به «دیده‌شده‌ها» اضافه نشده است.'],
-        watchlist: ['fa-bookmark', 'واچ‌لیست شما خالی است.']
-    };
+    const heading = $('dashHeading');
+    if (heading) heading.textContent = count > 0 ? `${DASH_HEADINGS[dashFilter]} (${count})` : DASH_HEADINGS[dashFilter];
 
-    Object.keys(targets).forEach((k) => {
-        const el = targets[k];
-        if (!el) return;
-        el.innerHTML = '';
-        if (counts[k] === 0) el.appendChild(emptyState(emptyTexts[k][0], emptyTexts[k][1]));
-        else el.appendChild(frags[k]);
-    });
+    grid.innerHTML = '';
+    if (count > 0) {
+        grid.appendChild(frag);
+        return;
+    }
+
+    const searching = (($('dashSearchInput') || {}).value || '').trim() !== '';
+    if (searching) grid.appendChild(emptyState('fa-magnifying-glass', 'موردی با این نام در فهرست شما پیدا نشد.'));
+    else if (!currentUserId) grid.appendChild(emptyState('fa-user-lock', 'برای ذخیره و دیدن فهرست خود، وارد حساب کاربری شوید.'));
+    else grid.appendChild(emptyState(...DASH_EMPTY[dashFilter]));
 }
 
 /* ========================================================
@@ -1035,26 +1107,9 @@ async function executeDelete() {
 
     try {
         await fetch(`/api/movies/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        refreshActivityIfVisible();
     } catch (e) {}
 }
-
-/* ========================================================
-   کشوی موبایل
-======================================================== */
-function setDrawer(open) {
-    const sidebar = document.querySelector('.sidebar-watched');
-    const overlay = $('drawerOverlay');
-    if (sidebar) sidebar.classList.toggle('drawer-open', open);
-    if (overlay) overlay.classList.toggle('active', open);
-    document.body.classList.toggle('drawer-active', open);
-}
-
-function toggleMobileSidebar() {
-    const sidebar = document.querySelector('.sidebar-watched');
-    setDrawer(!(sidebar && sidebar.classList.contains('drawer-open')));
-}
-
-function closeMobileSidebar() { setDrawer(false); }
 
 /* ========================================================
    پروفایل، دوستان و چت داخل برنامه
@@ -1063,59 +1118,100 @@ const DEFAULT_AVATAR = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#262638"/><circle cx="50" cy="38" r="18" fill="#55556a"/><path d="M18 90c4-24 26-34 32-34s28 10 32 34" fill="#55556a"/></svg>`
 );
 
+const EMOJI_SET = ['😀','😂','😍','😎','🥳','😉','🙂','😇','🤔','😴','😭','😡','👍','👎','🙏','👏','💪','🔥','❤️','💔','🎬','🍿','⭐','🎉','😢','😅','🤩','😱','🙄','😏'];
+
+let contactsCache = [];
+let requestsPanelOpen = false;
+
 function avatarSrc(path) {
     return path ? path : DEFAULT_AVATAR;
 }
 
-function userRowHTML(user, actionsHtml) {
-    return `
-        <div class="user-row" data-user-id="${esc(user.id)}">
-            <img class="user-row-avatar" src="${esc(avatarSrc(user.avatar))}" alt="${esc(user.username)}" loading="lazy">
-            <span class="user-row-name">${esc(user.username)}</span>
-            <div class="user-row-actions">${actionsHtml}</div>
-        </div>
-    `;
+function timeAgoShort(ts) {
+    if (!ts) return '';
+    const diff = Math.floor(Date.now() / 1000) - ts;
+    if (diff < 60) return 'اکنون';
+    if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ساعت`;
+    return `${Math.floor(diff / 86400)} روز`;
 }
 
 /* ---- بارگذاری تب دوستان ---- */
 async function loadSocialData() {
     if (!currentUserId) {
+        $('contactsList').innerHTML = '<p class="empty-hint">برای استفاده از این بخش وارد حساب کاربری خود شوید.</p>';
         $('userSearchResults').innerHTML = '';
-        $('friendsList').innerHTML = '<p class="empty-hint">برای استفاده از این بخش وارد حساب کاربری خود شوید.</p>';
-        $('conversationsList').innerHTML = '';
-        $('incomingRequestsSection').classList.add('hidden');
+        $('requestsToggleBtn').classList.add('hidden');
+        $('incomingRequestsList').classList.add('hidden');
         return;
     }
     try {
         const res = await fetch('/api/friends');
-        if (res.ok) {
-            const data = await res.json();
-            renderFriendsList(data.friends || []);
-            renderIncomingRequests(data.incomingRequests || []);
-        }
+        if (!res.ok) return;
+        const data = await res.json();
+        contactsCache = data.friends || [];
+        renderContactsList(contactsCache);
+        renderIncomingRequests(data.incomingRequests || []);
     } catch (e) {}
-    loadConversations();
 }
 
-function renderFriendsList(friends) {
-    const box = $('friendsList');
-    if (!friends.length) { box.innerHTML = '<p class="empty-hint">هنوز دوستی اضافه نکرده‌اید.</p>'; return; }
-    box.innerHTML = friends.map((u) => userRowHTML(u, `
-        <button type="button" class="btn-outline-red btn-sm" onclick="openPublicProfile(${u.id})" title="پروفایل"><i class="fa-solid fa-id-card"></i></button>
-        <button type="button" class="btn-primary-red btn-sm" onclick="openChatWindow(${u.id}, '${esc(u.username).replace(/'/g, "\\'")}', '${esc(u.avatar || '')}')" title="گفتگو"><i class="fa-solid fa-comment"></i></button>
-    `)).join('');
+function renderContactsList(friends) {
+    const box = $('contactsList');
+    if (!friends.length) {
+        box.innerHTML = '<p class="empty-hint">هنوز دوستی اضافه نکرده‌اید. از قسمت جستجو، دوستان خود را پیدا کنید.</p>';
+        return;
+    }
+    box.innerHTML = friends.map((u) => {
+        const preview = u.lastMessageType === 'image' ? '📷 عکس' : (u.lastMessage || 'شروع گفتگو کنید');
+        const isActive = activeChatPartnerId === u.id;
+        return `
+        <div class="contact-row ${isActive ? 'active' : ''}" data-user-id="${esc(u.id)}" onclick="selectContact(${u.id}, '${esc(u.username).replace(/'/g, "\\'")}', '${esc(u.avatar || '')}')">
+            <div class="contact-avatar-wrap">
+                <img class="contact-avatar" src="${esc(avatarSrc(u.avatar))}" alt="${esc(u.username)}" loading="lazy">
+                <span class="presence-dot ${u.online ? 'online' : 'offline'}"></span>
+            </div>
+            <div class="contact-meta">
+                <span class="contact-name">${esc(u.username)}</span>
+                <span class="contact-preview">${esc(preview)}</span>
+            </div>
+            <div class="contact-side">
+                ${u.lastAt ? `<span class="contact-time">${timeAgoShort(u.lastAt)}</span>` : ''}
+                ${u.unread ? `<span class="unread-dot" id="unread-${u.id}">${esc(u.unread)}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
 }
 
 function renderIncomingRequests(list) {
-    const section = $('incomingRequestsSection');
+    const toggleBtn = $('requestsToggleBtn');
     const box = $('incomingRequestsList');
-    if (!list.length) { section.classList.add('hidden'); box.innerHTML = ''; refreshSocialBadge(list.length); return; }
-    section.classList.remove('hidden');
-    box.innerHTML = list.map((u) => userRowHTML(u, `
-        <button type="button" class="btn-primary-red btn-sm" onclick="respondFriendRequest(${u.id}, true)" title="قبول"><i class="fa-solid fa-check"></i></button>
-        <button type="button" class="btn-outline-red btn-sm" onclick="respondFriendRequest(${u.id}, false)" title="رد"><i class="fa-solid fa-xmark"></i></button>
-    `)).join('');
+    if (!list.length) {
+        toggleBtn.classList.add('hidden');
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        requestsPanelOpen = false;
+        refreshSocialBadge(0);
+        return;
+    }
+    toggleBtn.classList.remove('hidden');
+    $('requestsCountBadge').textContent = list.length;
+    box.innerHTML = list.map((u) => `
+        <div class="user-row">
+            <img class="user-row-avatar" src="${esc(avatarSrc(u.avatar))}" alt="${esc(u.username)}" loading="lazy">
+            <span class="user-row-name">${esc(u.username)}</span>
+            <div class="user-row-actions">
+                <button type="button" class="btn-primary-red btn-sm" onclick="respondFriendRequest(${u.id}, true)" title="قبول"><i class="fa-solid fa-check"></i></button>
+                <button type="button" class="btn-outline-red btn-sm" onclick="respondFriendRequest(${u.id}, false)" title="رد"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+    `).join('');
+    box.classList.toggle('hidden', !requestsPanelOpen);
     refreshSocialBadge(list.length);
+}
+
+function toggleRequestsPanel() {
+    requestsPanelOpen = !requestsPanelOpen;
+    $('incomingRequestsList').classList.toggle('hidden', !requestsPanelOpen);
 }
 
 function refreshSocialBadge(pendingCount) {
@@ -1137,16 +1233,24 @@ function handleUserSearch() {
     clearTimeout(userSearchTimer);
     const q = $('userSearchInput').value.trim();
     const box = $('userSearchResults');
-    if (!q) { box.innerHTML = ''; return; }
+    if (!q) { box.classList.add('hidden'); box.innerHTML = ''; return; }
     userSearchTimer = setTimeout(async () => {
         try {
             const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
             if (!res.ok) return;
             const users = await res.json();
+            box.classList.remove('hidden');
             if (!users.length) { box.innerHTML = '<p class="empty-hint">کاربری پیدا نشد.</p>'; return; }
-            box.innerHTML = users.map((u) => userRowHTML(u, `
-                <button type="button" class="btn-outline-red btn-sm" onclick="openPublicProfile(${u.id})" title="مشاهده پروفایل"><i class="fa-solid fa-id-card"></i></button>
-            `)).join('');
+            box.innerHTML = users.map((u) => `
+                <div class="user-row">
+                    <img class="user-row-avatar" src="${esc(avatarSrc(u.avatar))}" alt="${esc(u.username)}" loading="lazy">
+                    <span class="user-row-name">${esc(u.username)}</span>
+                    <div class="user-row-actions">
+                        <button type="button" class="btn-outline-red btn-sm" onclick="openPublicProfile(${u.id})" title="مشاهده پروفایل"><i class="fa-solid fa-id-card"></i></button>
+                        <button type="button" class="btn-primary-red btn-sm" onclick="sendFriendRequest(${u.id})" title="افزودن دوست"><i class="fa-solid fa-user-plus"></i></button>
+                    </div>
+                </div>
+            `).join('');
         } catch (e) {}
     }, 350);
 }
@@ -1178,6 +1282,7 @@ async function removeFriend(userId) {
     try {
         await fetch(`/api/friends/${userId}`, { method: 'DELETE' });
         showToast('از لیست دوستان حذف شد.', 'info');
+        if (activeChatPartnerId === userId) deselectChat();
         loadSocialData();
         closePublicProfileModal();
     } catch (e) {}
@@ -1185,6 +1290,7 @@ async function removeFriend(userId) {
 
 /* ---- پروفایل عمومی کاربر دیگر ---- */
 async function openPublicProfile(userId) {
+    if (!userId) return;
     try {
         const res = await fetch(`/api/users/${userId}`);
         if (!res.ok) { showToast('پروفایل پیدا نشد.', 'error'); return; }
@@ -1200,7 +1306,7 @@ async function openPublicProfile(userId) {
             actions.innerHTML = '';
         } else if (p.friendStatus === 'friends') {
             actions.innerHTML = `
-                <button type="button" class="btn-primary-red" onclick="openChatWindow(${p.id}, '${esc(p.username).replace(/'/g, "\\'")}', '${esc(p.avatar || '')}')"><i class="fa-solid fa-comment"></i> ارسال پیام</button>
+                <button type="button" class="btn-primary-red" onclick="selectContact(${p.id}, '${esc(p.username).replace(/'/g, "\\'")}', '${esc(p.avatar || '')}'); closePublicProfileModal();"><i class="fa-solid fa-comment"></i> ارسال پیام</button>
                 <button type="button" class="btn-outline-red" onclick="removeFriend(${p.id})"><i class="fa-solid fa-user-minus"></i> حذف دوستی</button>
             `;
         } else if (p.friendStatus === 'pending_sent') {
@@ -1301,7 +1407,14 @@ function initChatSocket() {
         } else if (msg.sender_id !== currentUserId) {
             showToast('پیام جدید دریافت شد.', 'info');
         }
-        loadConversations();
+        if (isSocialTabActive()) loadSocialData();
+    });
+
+    chatSocket.on('presence:update', (data) => {
+        const row = document.querySelector(`.contact-row[data-user-id="${data.userId}"] .presence-dot`);
+        if (row) row.className = 'presence-dot ' + (data.online ? 'online' : 'offline');
+        const c = contactsCache.find(u => u.id === data.userId);
+        if (c) c.online = data.online;
     });
 
     chatSocket.on('friend:request', () => { refreshSocialBadge(); if (isSocialTabActive()) loadSocialData(); });
@@ -1313,71 +1426,402 @@ function disconnectChatSocket() {
 }
 
 function isSocialTabActive() {
-    const tab = $('socialTab');
+    const tab = $('friendsTab');
     return tab && !tab.classList.contains('hidden');
 }
 
-async function loadConversations() {
-    if (!currentUserId) return;
-    try {
-        const res = await fetch('/api/conversations');
-        if (!res.ok) return;
-        const list = await res.json();
-        const box = $('conversationsList');
-        if (!box) return;
-        if (!list.length) { box.innerHTML = '<p class="empty-hint">برای شروع گفتگو، اول با کسی دوست شوید.</p>'; return; }
-        box.innerHTML = list.map((u) => userRowHTML(u, `
-            ${u.unread ? `<span class="unread-dot">${esc(u.unread)}</span>` : ''}
-            <button type="button" class="btn-primary-red btn-sm" onclick="openChatWindow(${u.id}, '${esc(u.username).replace(/'/g, "\\'")}', '${esc(u.avatar || '')}')"><i class="fa-solid fa-comment"></i></button>
-        `)).join('');
-    } catch (e) {}
-}
-
-async function openChatWindow(userId, username, avatar) {
+/* ---- گفتگوی فعال ---- */
+async function selectContact(userId, username, avatar) {
     activeChatPartnerId = userId;
     activeChatPartnerName = username;
-    setPoster($('chatPartnerAvatar'), avatar, username, 'thumb');
-    $('chatPartnerName').innerText = username;
-    $('chatWindow').classList.remove('hidden');
-    $('chatMessages').innerHTML = '<p class="empty-hint">در حال بارگذاری...</p>';
+
+    $('chatPartnerName2').innerText = username;
+    $('chatEmptyState').classList.add('hidden');
+    $('chatActive').classList.remove('hidden');
+    $('emojiPicker').classList.add('hidden');
+    $('chatMessages2').innerHTML = '<p class="empty-hint">در حال بارگذاری...</p>';
+
+    document.querySelectorAll('.contact-row').forEach(r => r.classList.toggle('active', Number(r.dataset.userId) === userId));
+    const badge = document.getElementById(`unread-${userId}`);
+    if (badge) badge.remove();
 
     try {
         const res = await fetch(`/api/messages/${userId}`);
-        if (!res.ok) { $('chatMessages').innerHTML = '<p class="empty-hint">فقط با دوستان می‌توانید گفتگو کنید.</p>'; return; }
+        if (!res.ok) { $('chatMessages2').innerHTML = '<p class="empty-hint">فقط با دوستان می‌توانید گفتگو کنید.</p>'; return; }
         const msgs = await res.json();
-        $('chatMessages').innerHTML = '';
-        msgs.forEach(appendChatMessage);
+        $('chatMessages2').innerHTML = '';
+        if (!msgs.length) $('chatMessages2').innerHTML = '<p class="empty-hint">هنوز پیامی رد و بدل نشده. اولین پیام را بفرست!</p>';
+        else msgs.forEach(appendChatMessage);
         scrollChatToBottom();
     } catch (e) {}
 }
 
-function closeChatWindow() {
-    $('chatWindow').classList.add('hidden');
+function deselectChat() {
     activeChatPartnerId = null;
+    $('chatActive').classList.add('hidden');
+    $('chatEmptyState').classList.remove('hidden');
+    document.querySelectorAll('.contact-row.active').forEach(r => r.classList.remove('active'));
 }
 
 function appendChatMessage(msg) {
-    const box = $('chatMessages');
+    const box = $('chatMessages2');
     if (!box) return;
+    const emptyHint = box.querySelector('.empty-hint');
+    if (emptyHint) emptyHint.remove();
     const mine = msg.sender_id === currentUserId;
     const div = document.createElement('div');
-    div.className = 'chat-bubble ' + (mine ? 'mine' : 'theirs');
-    div.innerText = msg.body;
+    div.className = 'chat-bubble2 ' + (mine ? 'mine' : 'theirs');
+    if (msg.type === 'image') {
+        div.classList.add('chat-bubble-image');
+        div.innerHTML = `<img src="${esc(msg.body)}" alt="عکس" loading="lazy" onclick="window.open('${esc(msg.body)}', '_blank')">`;
+    } else {
+        div.innerText = msg.body;
+    }
     box.appendChild(div);
     scrollChatToBottom();
 }
 
 function scrollChatToBottom() {
-    const box = $('chatMessages');
+    const box = $('chatMessages2');
     if (box) box.scrollTop = box.scrollHeight;
 }
 
 function sendChatMessage() {
-    const input = $('chatInput');
+    const input = $('chatInput2');
     const body = input.value.trim();
     if (!body || !activeChatPartnerId || !chatSocket) return;
     input.value = '';
-    chatSocket.emit('chat:send', { receiverId: activeChatPartnerId, body }, (ack) => {
+    chatSocket.emit('chat:send', { receiverId: activeChatPartnerId, body, type: 'text' }, (ack) => {
         if (ack && ack.error) showToast(ack.error, 'error');
     });
+}
+
+/* ---- ایموجی ---- */
+function toggleEmojiPicker() {
+    const picker = $('emojiPicker');
+    if (!picker) return;
+    if (picker.classList.contains('hidden')) {
+        if (!picker.dataset.built) {
+            picker.innerHTML = EMOJI_SET.map(e => `<button type="button" class="emoji-item" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+            picker.dataset.built = '1';
+        }
+        picker.classList.remove('hidden');
+    } else {
+        picker.classList.add('hidden');
+    }
+}
+
+function insertEmoji(e) {
+    const input = $('chatInput2');
+    input.value += e;
+    input.focus();
+}
+
+/* ---- ارسال عکس/گیف در چت ---- */
+async function handleChatAttachment(evt) {
+    const file = evt.target.files && evt.target.files[0];
+    if (!file || !activeChatPartnerId) return;
+    if (file.size > 8 * 1024 * 1024) { showToast('حجم فایل نباید بیشتر از ۸ مگابایت باشد.', 'error'); evt.target.value = ''; return; }
+
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        showToast('در حال ارسال فایل...', 'info');
+        const res = await fetch('/api/messages/attachment', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) { showToast(data.error || 'ارسال فایل ناموفق بود.', 'error'); return; }
+
+        chatSocket.emit('chat:send', { receiverId: activeChatPartnerId, body: data.url, type: 'image' }, (ack) => {
+            if (ack && ack.error) showToast(ack.error, 'error');
+        });
+    } catch (e) {
+        showToast('ارتباط با سرور برقرار نشد.', 'error');
+    }
+    evt.target.value = '';
+}
+
+document.addEventListener('click', (e) => {
+    const picker = $('emojiPicker');
+    const toggleBtn = $('emojiToggleBtn');
+    if (!picker || picker.classList.contains('hidden')) return;
+    if (!picker.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+        picker.classList.add('hidden');
+    }
+});
+
+
+/* ========================================================
+   نمودار فعالیت روزانه (داشبورد)
+======================================================== */
+function refreshActivityIfVisible() {
+    if (activeTabName === 'dashboard') loadActivity();
+}
+
+async function loadActivity() {
+    if (!$('activityChart')) return;
+    if (!currentUserId) { renderActivityChart(null); return; }
+    try {
+        const res = await fetch(`/api/activity?days=7&tz=${new Date().getTimezoneOffset()}`);
+        if (!res.ok) throw new Error('activity failed');
+        renderActivityChart(await res.json());
+    } catch (e) {
+        renderActivityChart(null, 'دریافت نمودار ناموفق بود.');
+    }
+}
+
+const WEEKDAY_LETTER = ['ی', 'د', 'س', 'چ', 'پ', 'ج', 'ش']; // یکشنبه … شنبه (getDay)
+const WEEKDAY_FULL = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+
+function renderActivityChart(data, message) {
+    const chart = $('activityChart');
+    const totalEl = $('activityTotal');
+    if (!chart) return;
+
+    if (!data || !Array.isArray(data.days)) {
+        chart.innerHTML = `<div class="activity-hint">${esc(message || 'برای دیدن نمودار فعالیت، وارد حساب کاربری شوید.')}</div>`;
+        if (totalEl) totalEl.textContent = '';
+        return;
+    }
+
+    const days = data.days;
+    const max = Math.max(1, ...days.map((d) => d.count));
+    if (totalEl) totalEl.textContent = `مجموع: ${data.total || 0}`;
+
+    chart.innerHTML = days.map((d, i) => {
+        const dt = new Date(`${d.date}T12:00:00`);
+        const dow = dt.getDay();
+        const label = i === days.length - 1 ? 'امروز' : WEEKDAY_LETTER[dow];
+        const height = d.count > 0 ? Math.max(8, Math.round((d.count / max) * 100)) : 4;
+        const tip = `${WEEKDAY_FULL[dow]} ${dt.toLocaleDateString('fa-IR')}: ${d.count} فعالیت`;
+        const cls = ['activity-col', i === days.length - 1 ? 'is-today' : '', d.count === 0 ? 'is-empty' : ''].join(' ').trim();
+        return `
+            <div class="${cls}" title="${esc(tip)}">
+                <span class="activity-count">${d.count > 0 ? d.count : ''}</span>
+                <div class="activity-bar-wrap"><div class="activity-bar" style="height:${height}px"></div></div>
+                <span class="activity-day">${label}</span>
+            </div>`;
+    }).join('');
+}
+
+
+/* ========================================================
+   اجتماع: پست، عکس و ویدیو
+======================================================== */
+const POST_MAX_VIDEO = 50 * 1024 * 1024;
+const POST_MAX_IMAGE = 8 * 1024 * 1024;
+const POST_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime'];
+
+function postTime(ts) {
+    if (!ts) return '';
+    const diff = Math.floor(Date.now() / 1000) - ts;
+    if (diff < 60) return 'اکنون';
+    if (diff > 7 * 86400) return new Date(ts * 1000).toLocaleDateString('fa-IR');
+    return `${timeAgoShort(ts)} پیش`;
+}
+
+function updateComposerState() {
+    const composer = $('postComposer');
+    const hint = $('communityLoginHint');
+    if (composer) composer.classList.toggle('hidden', !currentUserId);
+    if (hint) hint.classList.toggle('hidden', !!currentUserId);
+}
+
+function resetCommunity() {
+    communityOldestId = null;
+    const feed = $('postsFeed');
+    if (feed) feed.innerHTML = '';
+    const more = $('loadMorePostsBtn');
+    if (more) more.classList.add('hidden');
+    const body = $('postBody');
+    if (body) body.value = '';
+    clearPostMedia();
+}
+
+async function loadCommunity(reset) {
+    const feed = $('postsFeed');
+    const more = $('loadMorePostsBtn');
+    if (!feed) return;
+
+    updateComposerState();
+    if (!currentUserId) { feed.innerHTML = ''; if (more) more.classList.add('hidden'); return; }
+    if (communityBusy) return;
+    communityBusy = true;
+
+    if (reset) {
+        communityOldestId = null;
+        feed.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>در حال بارگذاری...</p></div>';
+    }
+
+    try {
+        const qs = new URLSearchParams({ limit: '15' });
+        if (!reset && communityOldestId) qs.set('before', communityOldestId);
+        const res = await fetch(`/api/posts?${qs}`);
+        if (!res.ok) throw new Error('posts failed');
+        const data = await res.json();
+        const posts = Array.isArray(data.posts) ? data.posts : [];
+
+        if (reset) feed.innerHTML = '';
+        if (reset && !posts.length) feed.appendChild(emptyState('fa-people-group', 'هنوز پستی منتشر نشده. اولین نفر باش!'));
+        posts.forEach((p) => feed.appendChild(buildPostCard(p)));
+        if (posts.length) communityOldestId = posts[posts.length - 1].id;
+        if (more) more.classList.toggle('hidden', !data.hasMore);
+    } catch (e) {
+        if (reset) {
+            feed.innerHTML = '';
+            feed.appendChild(emptyState('fa-triangle-exclamation', 'دریافت پست‌ها ناموفق بود.'));
+        } else {
+            showToast('دریافت پست‌ها ناموفق بود.', 'error');
+        }
+    } finally {
+        communityBusy = false;
+    }
+}
+
+function buildPostCard(p) {
+    const el = document.createElement('article');
+    el.className = 'post-card';
+    el.dataset.postId = p.id;
+    const mine = Number(p.user_id) === Number(currentUserId);
+
+    let media = '';
+    if (p.media_url) {
+        media = p.media_type === 'video'
+            ? `<video class="post-media" src="${esc(p.media_url)}" controls preload="metadata" playsinline></video>`
+            : `<img class="post-media" src="${esc(p.media_url)}" alt="تصویر پست" loading="lazy" onclick="window.open(this.src, '_blank')">`;
+    }
+
+    el.innerHTML = `
+        <div class="post-head">
+            <img class="post-avatar" src="${esc(avatarSrc(p.avatar))}" alt="" loading="lazy">
+            <div class="post-author">
+                <button type="button" class="post-author-name" onclick="openPublicProfile(${Number(p.user_id)})">${esc(p.username)}</button>
+                <span class="post-time">${esc(postTime(p.created_at))}</span>
+            </div>
+            ${mine ? '<button type="button" class="chat-icon-btn post-delete-btn" title="حذف پست"><i class="fa-solid fa-trash-can"></i></button>' : ''}
+        </div>
+        ${p.body ? `<div class="post-body">${esc(p.body)}</div>` : ''}
+        ${media}
+        <div class="post-actions">
+            <button type="button" class="post-like-btn ${p.liked ? 'liked' : ''}">
+                <i class="${p.liked ? 'fa-solid' : 'fa-regular'} fa-heart"></i> <span class="like-count">${Number(p.likes) || 0}</span>
+            </button>
+        </div>
+    `;
+
+    el.querySelector('.post-like-btn').onclick = (e) => togglePostLike(p.id, e.currentTarget);
+    const delBtn = el.querySelector('.post-delete-btn');
+    if (delBtn) delBtn.onclick = () => deletePost(p.id, el);
+    return el;
+}
+
+async function togglePostLike(postId, btn) {
+    try {
+        const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+        if (!res.ok) throw new Error('like failed');
+        const d = await res.json();
+        btn.classList.toggle('liked', !!d.liked);
+        btn.querySelector('i').className = `${d.liked ? 'fa-solid' : 'fa-regular'} fa-heart`;
+        btn.querySelector('.like-count').textContent = d.likes;
+    } catch (e) {
+        showToast('ثبت پسند ناموفق بود.', 'error');
+    }
+}
+
+async function deletePost(postId, el) {
+    if (!window.confirm('این پست حذف شود؟')) return;
+    try {
+        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('delete failed');
+        el.remove();
+        showToast('پست حذف شد.', 'info');
+        const feed = $('postsFeed');
+        if (feed && !feed.querySelector('.post-card')) feed.appendChild(emptyState('fa-people-group', 'هنوز پستی منتشر نشده. اولین نفر باش!'));
+    } catch (e) {
+        showToast('حذف پست ناموفق بود.', 'error');
+    }
+}
+
+/* ---- انتخاب و پیش‌نمایش فایل ---- */
+function clearPostMedia() {
+    if (postMediaPreviewUrl) URL.revokeObjectURL(postMediaPreviewUrl);
+    postMediaPreviewUrl = '';
+    postMediaFile = null;
+    const box = $('postMediaPreview');
+    if (box) { box.innerHTML = ''; box.classList.add('hidden'); }
+}
+
+function handlePostMediaSelect(evt) {
+    const file = evt.target.files && evt.target.files[0];
+    evt.target.value = '';
+    if (!file) return;
+
+    if (!POST_ALLOWED_TYPES.includes(file.type)) {
+        showToast('فقط عکس (JPG/PNG/WEBP/GIF) یا ویدیو (MP4/WEBM/MOV) مجاز است.', 'error');
+        return;
+    }
+    const isVideo = file.type.startsWith('video/');
+    if (file.size > (isVideo ? POST_MAX_VIDEO : POST_MAX_IMAGE)) {
+        showToast(isVideo ? 'حجم ویدیو نباید بیشتر از ۵۰ مگابایت باشد.' : 'حجم عکس نباید بیشتر از ۸ مگابایت باشد.', 'error');
+        return;
+    }
+
+    clearPostMedia();
+    postMediaFile = file;
+    postMediaPreviewUrl = URL.createObjectURL(file);
+
+    const box = $('postMediaPreview');
+    box.innerHTML = isVideo
+        ? `<video src="${esc(postMediaPreviewUrl)}" controls playsinline></video>`
+        : `<img src="${esc(postMediaPreviewUrl)}" alt="پیش‌نمایش">`;
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'preview-remove';
+    rm.title = 'حذف فایل';
+    rm.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    rm.onclick = clearPostMedia;
+    box.appendChild(rm);
+    box.classList.remove('hidden');
+}
+
+async function submitPost() {
+    if (!currentUserId) { openAuthModal(); return; }
+
+    const bodyEl = $('postBody');
+    const body = bodyEl.value.trim();
+    if (!body && !postMediaFile) {
+        showToast('متنی بنویس یا یک عکس/ویدیو اضافه کن.', 'info');
+        return;
+    }
+
+    const btn = $('postSubmitBtn');
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> در حال ارسال...';
+
+    const fd = new FormData();
+    fd.append('body', body);
+    if (postMediaFile) fd.append('media', postMediaFile);
+
+    try {
+        const res = await fetch('/api/posts', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.post) {
+            showToast(data.error || 'انتشار پست ناموفق بود.', 'error');
+            return;
+        }
+
+        const feed = $('postsFeed');
+        const emptyEl = feed.querySelector('.empty-state');
+        if (emptyEl) emptyEl.remove();
+        feed.prepend(buildPostCard(data.post));
+
+        bodyEl.value = '';
+        clearPostMedia();
+        showToast('پست منتشر شد.', 'success');
+    } catch (e) {
+        showToast('ارتباط با سرور برقرار نشد.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+    }
 }

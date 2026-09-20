@@ -17,31 +17,23 @@
 
     <div class="dashboard-container">
         
-        <!-- دکمه همبرگری موبایل -->
-        <button type="button" class="mobile-drawer-toggle" onclick="toggleMobileSidebar()" aria-label="منو">
-            <i class="fa-solid fa-bars"></i>
-        </button>
-
-        <!-- overlay برای بستن کشو در موبایل -->
-        <div id="drawerOverlay" class="drawer-overlay" onclick="toggleMobileSidebar()"></div>
-
-        <!-- سایدبار قرمز: آخرین فعالیت‌ها -->
-        <aside class="sidebar-red sidebar-watched">
+        <!-- سایدبار قرمز: آخرین فعالیت‌ها (کادر جدا، سمت راست) -->
+        <aside class="recent-panel sidebar-red">
             <div class="section-title">
                 <i class="fa-solid fa-clock-rotate-left"></i>
                 <h2>آخرین فعالیت‌ها</h2>
             </div>
-            
+
             <div class="filter-box">
-                <input type="search" id="filterInput" onkeyup="filterMovies()" placeholder="🔍 جستجو در لیست..." autocomplete="off">
-                <select id="sortSelect" onchange="sortMovies()">
+                <input type="search" id="recentSearchInput" placeholder="🔍 جستجو در لیست..." autocomplete="off">
+                <select id="recentSortSelect">
                     <option value="newest">جدیدترین</option>
                     <option value="rating">بیشترین امتیاز</option>
                     <option value="title">حروف الفبا</option>
                 </select>
             </div>
 
-            <div id="watchedList" class="recent-list"></div>
+            <div class="recent-list"></div>
         </aside>
 
         <div class="main-right-wrapper">
@@ -52,32 +44,26 @@
                     <button type="button" id="tabNav-search" class="nav-btn nav-link active" onclick="switchTab('search')">
                         <i class="fa-solid fa-magnifying-glass"></i> <span class="nav-text">جستجو</span>
                     </button>
-                    <button type="button" id="tabNav-watching" class="nav-btn nav-link" onclick="switchTab('watching')">
-                        <i class="fa-solid fa-play"></i> <span class="nav-text">در حال تماشا</span>
+                    <button type="button" id="tabNav-dashboard" class="nav-btn nav-link" onclick="switchTab('dashboard')">
+                        <i class="fa-solid fa-table-columns"></i> <span class="nav-text">داشبورد</span>
                     </button>
-                    <button type="button" id="tabNav-watched" class="nav-btn nav-link" onclick="switchTab('watched')">
-                        <i class="fa-solid fa-check-double"></i> <span class="nav-text">دیده‌شده‌ها</span>
+                    <button type="button" id="tabNav-community" class="nav-btn nav-link" onclick="switchTab('community')">
+                        <i class="fa-solid fa-people-group"></i> <span class="nav-text">اجتماع</span>
                     </button>
-                    <button type="button" id="tabNav-watchlist" class="nav-btn nav-link" onclick="switchTab('watchlist')">
-                        <i class="fa-solid fa-bookmark"></i> <span class="nav-text">واچ‌لیست</span>
-                    </button>
-                    <button type="button" id="tabNav-social" class="nav-btn nav-link" onclick="switchTab('social')">
+                    <button type="button" id="tabNav-friends" class="nav-btn nav-link" onclick="switchTab('friends')">
                         <i class="fa-solid fa-user-group"></i> <span class="nav-text">دوستان</span>
                         <span id="socialBadge" class="nav-badge hidden">0</span>
-                    </button>
-                    <button type="button" class="nav-btn btn-random" onclick="pickRandomMovie()" title="امشب چی ببینم؟">
-                        <i class="fa-solid fa-dice"></i> <span class="nav-text">پیشنهاد امشب</span>
                     </button>
                 </nav>
 
                 <div class="user-profile">
-                    <button type="button" id="myAvatarBtn" class="my-avatar-btn hidden" onclick="openProfileSettingsModal()" title="تنظیمات پروفایل">
-                        <img id="myAvatarImg" src="" alt="عکس پروفایل">
-                    </button>
                     <div class="user-info">
                         <span id="displayUsername" class="user-name">کاربر مهمان</span>
                         <span id="displayStatus" class="user-status">خوش آمدید!</span>
                     </div>
+                    <button type="button" id="myAvatarBtn" class="my-avatar-btn hidden" onclick="openProfileSettingsModal()" title="تنظیمات پروفایل">
+                        <img id="myAvatarImg" src="" alt="عکس پروفایل">
+                    </button>
                     <button type="button" id="authBtn" class="auth-btn" onclick="openAuthModal()">
                         <i class="fa-solid fa-user-plus"></i> <span class="auth-text">ورود / ثبت‌نام</span>
                     </button>
@@ -86,26 +72,6 @@
 
             <!-- محتوای اصلی -->
             <main class="content-blue">
-
-                <!-- پنل خلاصه آمار -->
-                <div class="stats-bar">
-                    <div class="stat-card">
-                        <i class="fa-solid fa-film"></i>
-                        <div><span id="statTotalMovies">0</span><label>فیلم/سریال</label></div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fa-solid fa-star"></i>
-                        <div><span id="statAvgRating">0</span><label>میانگین امتیاز</label></div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fa-solid fa-bookmark"></i>
-                        <div><span id="statWatchlistCount">0</span><label>در واچ‌لیست</label></div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fa-solid fa-play"></i>
-                        <div><span id="statWatchingCount">0</span><label>در حال تماشا</label></div>
-                    </div>
-                </div>
 
                 <!-- ۱. تب جستجو -->
                 <div id="searchTab" class="tab-content">
@@ -134,47 +100,163 @@
                     </section>
                 </div>
 
-                <!-- ۲. تب در حال تماشا -->
-                <div id="watchingTab" class="tab-content hidden">
-                    <h2 class="sub-heading"><i class="fa-solid fa-play"></i> در حال تماشا</h2>
-                    <div id="watchingList" class="movie-grid grid-container"></div>
-                </div>
+                <!-- ۲. تب داشبورد -->
+                <div id="dashboardTab" class="tab-content hidden">
+                    <div class="dash-layout">
 
-                <!-- ۳. تب دیده‌شده‌ها -->
-                <div id="watchedTab" class="tab-content hidden">
-                    <h2 class="sub-heading"><i class="fa-solid fa-check-double"></i> فیلم و سریال‌های دیده‌شده</h2>
-                    <div id="completedGrid" class="movie-grid grid-container"></div>
-                </div>
-
-                <!-- ۴. تب واچ لیست -->
-                <div id="watchlistTab" class="tab-content hidden">
-                    <h2 class="sub-heading"><i class="fa-solid fa-bookmark"></i> فیلم‌های سیو شده (Watchlist)</h2>
-                    <div id="watchlist" class="movie-grid grid-container"></div>
-                </div>
-
-                <!-- ۵. تب دوستان و چت -->
-                <div id="socialTab" class="tab-content hidden">
-                    <div class="social-layout">
-                        <div class="social-col">
-                            <h2 class="sub-heading"><i class="fa-solid fa-magnifying-glass"></i> پیدا کردن دوستان</h2>
-                            <div class="filter-box">
-                                <input type="search" id="userSearchInput" oninput="handleUserSearch()" placeholder="🔍 جستجوی نام کاربری..." autocomplete="off">
+                        <!-- بخش اصلی: جستجو در ذخیره‌شده‌ها + فیلم‌ها و سریال‌ها -->
+                        <section class="dash-main">
+                            <div class="dash-toolbar">
+                                <div class="dash-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="search" id="dashSearchInput" placeholder="جستجو در فیلم‌ها و سریال‌های ذخیره‌شده..." autocomplete="off">
+                                </div>
+                                <select id="dashSortSelect" class="dash-sort" aria-label="مرتب‌سازی">
+                                    <option value="newest">جدیدترین</option>
+                                    <option value="rating">بیشترین امتیاز</option>
+                                    <option value="title">حروف الفبا</option>
+                                </select>
                             </div>
-                            <div id="userSearchResults" class="user-list"></div>
+                            <h2 class="sub-heading" id="dashHeading">همه‌ی ذخیره‌شده‌ها</h2>
+                            <div id="dashGrid" class="movie-grid grid-container"></div>
+                        </section>
 
-                            <div id="incomingRequestsSection" class="hidden">
-                                <h2 class="sub-heading"><i class="fa-solid fa-user-clock"></i> درخواست‌های دوستی</h2>
-                                <div id="incomingRequestsList" class="user-list"></div>
+                        <!-- پنل کناری: دکمه‌ها، آمار و نمودار فعالیت -->
+                        <aside class="dash-side">
+                            <div class="dash-filter-buttons">
+                                <button type="button" id="dashFilter-watching" class="dash-filter-btn" onclick="setDashFilter('watching')">
+                                    <i class="fa-solid fa-play"></i> <span>در حال تماشا</span>
+                                </button>
+                                <button type="button" id="dashFilter-watched" class="dash-filter-btn" onclick="setDashFilter('watched')">
+                                    <i class="fa-solid fa-check-double"></i> <span>دیده‌شده‌ها</span>
+                                </button>
+                                <button type="button" id="dashFilter-watchlist" class="dash-filter-btn" onclick="setDashFilter('watchlist')">
+                                    <i class="fa-solid fa-bookmark"></i> <span>واچ‌لیست</span>
+                                </button>
                             </div>
 
-                            <h2 class="sub-heading"><i class="fa-solid fa-user-group"></i> دوستان من</h2>
-                            <div id="friendsList" class="user-list"></div>
+                            <div class="dash-stats-grid">
+                                <div class="stat-card">
+                                    <i class="fa-solid fa-film"></i>
+                                    <div><span id="statTotalMovies">0</span><label>فیلم و سریال</label></div>
+                                </div>
+                                <div class="stat-card">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                    <div><span id="statWatchlistCount">0</span><label>در واچ‌لیست</label></div>
+                                </div>
+                                <div class="stat-card">
+                                    <i class="fa-solid fa-play"></i>
+                                    <div><span id="statWatchingCount">0</span><label>در حال تماشا</label></div>
+                                </div>
+                                <button type="button" class="stat-card stat-card-btn" onclick="pickRandomMovie()" title="امشب چی ببینم؟">
+                                    <i class="fa-solid fa-dice"></i>
+                                    <div><span class="stat-card-title">پیشنهاد امشب</span><label>یک انتخاب سریع</label></div>
+                                </button>
+                            </div>
+
+                            <div class="dash-activity">
+                                <div class="dash-activity-head">
+                                    <h3><i class="fa-solid fa-chart-bar"></i> فعالیت ۷ روز اخیر</h3>
+                                    <span id="activityTotal" class="activity-total"></span>
+                                </div>
+                                <div id="activityChart" class="activity-chart"></div>
+                            </div>
+                        </aside>
+
+                    </div>
+                </div>
+
+                <!-- ۳. تب اجتماع -->
+                <div id="communityTab" class="tab-content hidden">
+                    <div class="community-wrap">
+                        <h1 class="search-title community-title"><i class="fa-solid fa-people-group"></i> اجتماع</h1>
+                        <p class="search-subtitle community-subtitle">درباره‌ی فیلم و سریال‌ها بنویس، عکس و ویدیو بگذار و با بقیه آشنا شو.</p>
+
+                        <div id="communityLoginHint" class="community-login-hint">
+                            برای دیدن و انتشار پست‌ها ابتدا وارد حساب کاربری شوید.
+                            <button type="button" class="btn-primary-red" onclick="openAuthModal()">ورود / ثبت‌نام</button>
                         </div>
 
-                        <div class="social-col chat-col">
-                            <h2 class="sub-heading"><i class="fa-solid fa-comments"></i> گفتگوها</h2>
-                            <div id="conversationsList" class="user-list"></div>
+                        <div id="postComposer" class="post-composer hidden">
+                            <textarea id="postBody" rows="3" maxlength="1000" placeholder="چی تو ذهنته؟ یک فیلم یا سریال رو معرفی کن..."></textarea>
+                            <div id="postMediaPreview" class="post-media-preview hidden"></div>
+                            <div class="post-composer-actions">
+                                <label class="post-attach-btn" title="افزودن عکس یا ویدیو">
+                                    <i class="fa-solid fa-photo-film"></i> عکس / ویدیو
+                                    <input type="file" id="postMediaInput" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden onchange="handlePostMediaSelect(event)">
+                                </label>
+                                <button type="button" id="postSubmitBtn" class="btn-primary-red" onclick="submitPost()">
+                                    <i class="fa-solid fa-paper-plane"></i> انتشار
+                                </button>
+                            </div>
                         </div>
+
+                        <div id="postsFeed" class="posts-feed"></div>
+                        <button type="button" id="loadMorePostsBtn" class="btn-outline-red load-more-posts hidden" onclick="loadCommunity(false)">نمایش پست‌های بیشتر</button>
+                    </div>
+                </div>
+
+                <!-- ۴. تب دوستان و چت -->
+                <div id="friendsTab" class="tab-content hidden">
+                    <div class="chat-app-layout">
+
+                        <!-- پنل چت (سمت راست) -->
+                        <section class="chat-panel-col">
+                            <div id="chatEmptyState" class="chat-empty-state">
+                                <i class="fa-solid fa-comment-dots"></i>
+                                <p>یک مخاطب را از لیست کناری انتخاب کن تا گفتگو شروع بشه.</p>
+                            </div>
+
+                            <div id="chatActive" class="chat-active hidden">
+                                <div class="chat-panel-header">
+                                    <span id="chatPartnerName2" class="chat-partner-name"></span>
+                                    <button type="button" class="chat-icon-btn" onclick="openPublicProfile(activeChatPartnerId)" title="مشاهده پروفایل">
+                                        <i class="fa-solid fa-bars"></i>
+                                    </button>
+                                    <button type="button" class="chat-icon-btn" onclick="deselectChat()" title="بستن گفتگو">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <div id="chatMessages2" class="chat-messages2"></div>
+
+                                <div class="chat-input-row2">
+                                    <button type="button" class="chat-purple-btn" onclick="sendChatMessage()" title="ارسال پیام">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                    </button>
+                                    <button type="button" class="chat-purple-btn" id="emojiToggleBtn" onclick="toggleEmojiPicker()" title="ایموجی">
+                                        <i class="fa-regular fa-face-smile"></i>
+                                    </button>
+                                    <input type="text" id="chatInput2" placeholder="پیام خود را بنویسید..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); sendChatMessage();}">
+                                    <label class="chat-purple-btn chat-attach-btn" title="ارسال عکس یا گیف">
+                                        <i class="fa-solid fa-paperclip"></i>
+                                        <input type="file" id="chatAttachInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="handleChatAttachment(event)">
+                                    </label>
+                                </div>
+
+                                <div id="emojiPicker" class="emoji-picker hidden"></div>
+                            </div>
+                        </section>
+
+                        <!-- سایدبار مخاطبین و جستجو (سمت چپ) -->
+                        <aside class="chat-list-col">
+                            <div class="chat-list-search">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="search" id="userSearchInput" oninput="handleUserSearch()" placeholder="جستجوی کاربر برای افزودن دوست..." autocomplete="off">
+                            </div>
+                            <div id="userSearchResults" class="user-list search-results-list hidden"></div>
+
+                            <button type="button" id="requestsToggleBtn" class="requests-toggle hidden" onclick="toggleRequestsPanel()">
+                                <span><i class="fa-solid fa-user-clock"></i> درخواست‌های دوستی</span>
+                                <span id="requestsCountBadge" class="nav-badge"></span>
+                            </button>
+                            <div id="incomingRequestsList" class="user-list requests-dropdown hidden"></div>
+
+                            <div class="chat-list-scroll">
+                                <div id="contactsList" class="contacts-list"></div>
+                            </div>
+                        </aside>
+
                     </div>
                 </div>
 
@@ -277,20 +359,6 @@
             <div class="auth-toggle" style="margin-top:10px;">
                 <span id="toggleAuthText">حساب ندارید؟ <a href="#" onclick="toggleAuthMode(event)">ثبت‌نام کنید</a></span>
             </div>
-        </div>
-    </div>
-
-    <!-- پنجره چت -->
-    <div id="chatWindow" class="chat-window hidden">
-        <div class="chat-header">
-            <img id="chatPartnerAvatar" src="" alt="">
-            <span id="chatPartnerName" class="chat-partner-name"></span>
-            <button type="button" class="btn-close" onclick="closeChatWindow()">&times;</button>
-        </div>
-        <div id="chatMessages" class="chat-messages"></div>
-        <div class="chat-input-row">
-            <input type="text" id="chatInput" placeholder="پیام خود را بنویسید..." autocomplete="off" onkeydown="if(event.key==='Enter') sendChatMessage();">
-            <button type="button" class="btn-primary-red" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
     </div>
 

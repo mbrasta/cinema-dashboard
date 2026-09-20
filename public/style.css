@@ -83,7 +83,6 @@ select option { background: #1c1c24; color: #fff; }
 }
 
 .glass-card,
-.sidebar-red,
 .header-green,
 .content-blue {
     background: var(--card-bg);
@@ -142,13 +141,6 @@ select option { background: #1c1c24; color: #fff; }
 /* ========================================================
    آمار
 ======================================================== */
-.stats-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
 .stat-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-color);
@@ -231,35 +223,8 @@ select option { background: #1c1c24; color: #fff; }
 }
 
 /* ========================================================
-   سایدبار
+   فیلد انتخاب (پنل ثبت جزئیات)
 ======================================================== */
-.sidebar-red {
-    background: linear-gradient(180deg, rgba(35, 5, 8, 0.95) 0%, rgba(10, 3, 4, 0.98) 100%);
-    border: 1px solid rgba(229, 9, 20, 0.2);
-    padding: 20px;
-    overflow-y: auto;
-    min-height: 0;
-}
-
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--border-red);
-    margin-bottom: 12px;
-}
-
-.section-title h2 { font-size: 1.05rem; }
-
-.filter-box {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-
-.filter-box input,
-.filter-box select,
 .form-group select {
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid var(--border-color);
@@ -271,98 +236,12 @@ select option { background: #1c1c24; color: #fff; }
     width: 100%;
 }
 
-.filter-box input:focus,
-.filter-box select:focus { border-color: var(--border-red); }
-
-.sidebar-watched .recent-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-top: 6px;
-}
-
-.sidebar-watched .card {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    padding: 10px;
-    min-height: 90px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-right: 4px solid var(--border-red);
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.sidebar-watched .card:hover {
-    transform: translateX(-4px);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-}
-
-.sidebar-watched .card .poster-img {
-    width: 55px;
-    height: 80px;
-    border-radius: 6px;
-    flex-shrink: 0;
-}
-
-.sidebar-watched .card-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-    padding: 0;
-}
-
-.sidebar-watched .card-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #ffffff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 0;
-}
-
-.sidebar-watched .card-note {
-    font-size: 0.7rem;
-    color: #ccc;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 2px;
-    opacity: 0.8;
-}
-
 .star-rating {
     color: var(--accent-gold);
     font-size: 0.85rem;
     letter-spacing: 2px;
     margin-top: 2px;
 }
-
-.sidebar-watched .card .btn-delete {
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    position: absolute;
-    left: 8px;
-    top: 8px;
-    background: rgba(229, 9, 20, 0.2);
-    border: 1px solid var(--border-red);
-    color: #ff4d4d;
-    border-radius: 6px;
-    padding: 6px 10px;
-    cursor: pointer;
-}
-
-.sidebar-watched .card:hover .btn-delete,
-.sidebar-watched .card .btn-delete:focus-visible { opacity: 1; }
 
 /* ========================================================
    هدر و ناوبری
@@ -444,8 +323,6 @@ select option { background: #1c1c24; color: #fff; }
     box-shadow: 0 0 15px var(--border-red-glow);
 }
 
-.nav-btn.btn-random { border-color: rgba(255, 215, 0, 0.35); }
-.nav-btn.btn-random i { color: var(--accent-gold); }
 
 /* ========================================================
    محتوای اصلی
@@ -1068,34 +945,6 @@ select option { background: #1c1c24; color: #fff; }
     margin-top: 2px;
 }
 
-/* دکمه‌ی همبرگری و کشو (پیش‌فرض مخفی) */
-.mobile-drawer-toggle {
-    display: none;
-    position: fixed;
-    top: 16px;
-    right: 18px;
-    z-index: 1100;
-    background: var(--border-red);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    box-shadow: 0 0 15px var(--border-red-glow);
-}
-
-.drawer-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 1040;
-}
-
 /* ========================================================
    تبلت / لپ‌تاپ کوچک: نوار ناوبری جمع‌وجورتر
 ======================================================== */
@@ -1133,42 +982,14 @@ select option { background: #1c1c24; color: #fff; }
         gap: 10px;
     }
 
-    .mobile-drawer-toggle {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        top: calc(16px + var(--safe-top));
-    }
-    body.drawer-active .mobile-drawer-toggle { display: none; }
-
-    /* کشوی سایدبار */
-    .sidebar-red,
-    .sidebar-watched {
-        position: fixed;
-        top: 0;
-        right: -320px;
-        width: min(300px, 86vw);
-        height: 100vh;
-        height: 100dvh;
-        z-index: 1050;
-        transition: right 0.3s ease;
-        border-radius: 0;
-        border-left: 1px solid var(--border-red);
-        padding: calc(20px + var(--safe-top)) 16px calc(20px + var(--safe-bottom));
-    }
-
-    .sidebar-watched.drawer-open { right: 0; }
-    .drawer-overlay.active { display: block; }
-
-    /* هدر بالا: کنار دکمه‌ی همبرگری، همیشه بالای صفحه می‌ماند */
+    /* هدر بالا: همیشه بالای صفحه می‌ماند */
     .header-green,
     .top-header {
         position: sticky;
         top: calc(10px + var(--safe-top));
         z-index: 900;
         min-height: 64px;
-        padding: 8px 12px 8px 12px;
-        padding-right: 70px;
+        padding: 8px 12px;
         border-radius: 12px;
         background: rgba(16, 18, 20, 0.97);
     }
@@ -1208,7 +1029,6 @@ select option { background: #1c1c24; color: #fff; }
     }
 
     .nav-btn i { font-size: 1.15rem; }
-    .nav-btn.btn-random i { color: var(--accent-gold); }
 
     .nav-text {
         display: block;
@@ -1216,8 +1036,7 @@ select option { background: #1c1c24; color: #fff; }
         white-space: nowrap;
     }
 
-    .nav-btn.nav-link.active,
-    .nav-btn.btn-random:active {
+    .nav-btn.nav-link.active {
         background: rgba(229, 9, 20, 0.18);
         color: var(--border-red);
         box-shadow: none;
@@ -1229,14 +1048,6 @@ select option { background: #1c1c24; color: #fff; }
         border-radius: 12px;
         overflow: visible;
     }
-
-    .stats-bar {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-        margin-bottom: 14px;
-    }
-    .stat-card { padding: 10px; gap: 10px; }
-    .stat-card i { font-size: 1.25rem; }
 
     .search-section { padding: 16px 12px; margin-bottom: 18px; }
     .search-title { font-size: 1.15rem; }
@@ -1315,8 +1126,6 @@ select option { background: #1c1c24; color: #fff; }
    دستگاه‌های لمسی (بدون hover)
 ======================================================== */
 @media (hover: none) {
-    .sidebar-watched .card .btn-delete { opacity: 1; }
-
     .grid-container .card-overlay {
         opacity: 1;
         background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0) 55%);
@@ -1348,8 +1157,9 @@ select option { background: #1c1c24; color: #fff; }
     }
 }
 
+
 /* ========================================================
-   پروفایل، دوستان و چت (بخش اضافه شده)
+   پروفایل، دوستان و چت (طراحی جدید)
 ======================================================== */
 .btn-close {
     background: transparent;
@@ -1364,11 +1174,11 @@ select option { background: #1c1c24; color: #fff; }
 }
 .btn-close:hover { background: rgba(255, 255, 255, 0.1); }
 
-.public-profile-card .btn-close {
-    position: absolute;
-    top: 10px;
-    inset-inline-start: 10px;
-}
+.public-profile-card { max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; }
+.public-profile-card .btn-close { position: absolute; top: 10px; inset-inline-start: 10px; }
+.public-profile-head { text-align: center; margin-bottom: 18px; }
+.profile-bio { color: var(--text-muted); margin: 6px 0 14px; font-size: 14px; }
+.profile-friend-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 .nav-badge {
     background: var(--border-red);
@@ -1414,44 +1224,18 @@ select option { background: #1c1c24; color: #fff; }
     gap: 10px;
     margin-bottom: 16px;
 }
-.avatar-upload-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-}
-
-.public-profile-card { max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; }
-.public-profile-head { text-align: center; margin-bottom: 18px; }
-.profile-bio { color: var(--text-muted); margin: 6px 0 14px; font-size: 14px; }
-.profile-friend-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.avatar-upload-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 
 .form-group-checkbox { display: flex; align-items: flex-start; }
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13.5px;
-    color: var(--text-muted);
-    cursor: pointer;
-}
+.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-muted); cursor: pointer; }
 .checkbox-label input { width: 16px; height: 16px; accent-color: var(--border-red); flex-shrink: 0; }
 
-/* --- تب دوستان --- */
-.social-layout {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 24px;
-}
-@media (max-width: 900px) {
-    .social-layout { grid-template-columns: 1fr; }
-}
+.empty-hint { color: var(--text-muted); font-size: 13.5px; padding: 10px 2px; text-align: center; }
+.card-readonly .card-overlay { display: none; }
+.btn-sm { padding: 6px 10px; font-size: 12px; min-height: unset; }
 
-.social-col { display: flex; flex-direction: column; }
-.social-col .filter-box { margin-bottom: 14px; }
-
-.user-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-
+/* --- لیست کاربران (نتایج جستجو / درخواست‌ها) --- */
+.user-list { display: flex; flex-direction: column; gap: 8px; }
 .user-row {
     display: flex;
     align-items: center;
@@ -1465,8 +1249,281 @@ select option { background: #1c1c24; color: #fff; }
 .user-row-name { flex: 1; font-weight: 600; font-size: 14px; }
 .user-row-actions { display: flex; gap: 6px; align-items: center; }
 
-.btn-sm { padding: 6px 10px; font-size: 12px; min-height: unset; }
+/* ========================================================
+   تب دوستان و چت — چیدمان دو ستونه مثل مسنجر
+======================================================== */
+.chat-app-layout {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 190px);
+    height: calc(100dvh - 190px);
+    min-height: 480px;
+}
 
+/* --- ستون سمت راست: پنل گفتگو --- */
+.chat-panel-col {
+    flex: 1.4;
+    min-width: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.chat-empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+.chat-empty-state i { font-size: 2.4rem; opacity: 0.5; }
+.chat-empty-state.hidden { display: none; }
+
+.chat-active {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.chat-active.hidden { display: none; }
+
+.chat-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.chat-panel-header .chat-partner-name { font-weight: 700; font-size: 15px; flex: 1; }
+
+.chat-icon-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+}
+.chat-icon-btn:hover { background: rgba(229, 9, 20, 0.2); color: var(--border-red); }
+
+.chat-messages2 {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-bubble2 {
+    max-width: 70%;
+    padding: 9px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.chat-bubble2.mine {
+    align-self: flex-start;
+    background: var(--border-red);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+.chat-bubble2.theirs {
+    align-self: flex-end;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border-bottom-left-radius: 4px;
+}
+.chat-bubble2.chat-bubble-image { padding: 5px; background: transparent; max-width: 60%; }
+.chat-bubble2.chat-bubble-image img {
+    max-width: 100%;
+    border-radius: 12px;
+    display: block;
+    cursor: pointer;
+}
+
+.chat-input-row2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px calc(12px + var(--safe-bottom));
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+    position: relative;
+}
+.chat-input-row2 input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 11px 16px;
+    color: var(--text-main);
+    min-width: 0;
+}
+
+.chat-purple-btn {
+    background: rgba(147, 51, 234, 0.15);
+    border: 1.5px solid #9333ea;
+    color: #b98bf0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.chat-purple-btn:hover { background: rgba(147, 51, 234, 0.3); transform: translateY(-1px); }
+.chat-attach-btn { margin: 0; }
+
+.emoji-picker {
+    position: absolute;
+    bottom: 100%;
+    inset-inline-start: 14px;
+    margin-bottom: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    width: min(260px, 90vw);
+    z-index: 20;
+}
+.emoji-picker.hidden { display: none; }
+.emoji-item {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+}
+.emoji-item:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* --- ستون سمت چپ: سایدبار مخاطبین --- */
+.chat-list-col {
+    flex: 1;
+    min-width: 260px;
+    max-width: 340px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px;
+    gap: 10px;
+}
+
+.chat-list-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 9px 14px;
+    flex-shrink: 0;
+}
+.chat-list-search i { color: var(--text-muted); font-size: 13px; }
+.chat-list-search input {
+    background: transparent;
+    border: none;
+    flex: 1;
+    color: var(--text-main);
+    font-size: 13.5px;
+    min-width: 0;
+}
+.chat-list-search input:focus { outline: none; }
+
+.search-results-list { flex-shrink: 0; max-height: 220px; overflow-y: auto; }
+.search-results-list.hidden { display: none; }
+
+.requests-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(229, 9, 20, 0.1);
+    border: 1px solid rgba(229, 9, 20, 0.35);
+    color: var(--border-red);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.requests-toggle.hidden { display: none; }
+.requests-dropdown { flex-shrink: 0; max-height: 200px; overflow-y: auto; }
+.requests-dropdown.hidden { display: none; }
+
+.chat-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+.contacts-list { display: flex; flex-direction: column; gap: 4px; }
+
+.contact-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.contact-row:hover { background: rgba(255, 255, 255, 0.05); }
+.contact-row.active { background: rgba(229, 9, 20, 0.15); }
+
+.contact-avatar-wrap { position: relative; flex-shrink: 0; }
+.contact-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #1c1c24; display: block; }
+.presence-dot {
+    position: absolute;
+    bottom: -1px;
+    inset-inline-start: -1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--card-bg);
+}
+.presence-dot.online { background: #22c55e; }
+.presence-dot.offline { background: #ef4444; }
+
+.contact-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.contact-name { font-size: 14px; font-weight: 700; }
+.contact-preview {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contact-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.contact-time { font-size: 11px; color: var(--text-muted); }
 .unread-dot {
     background: var(--border-red);
     color: #fff;
@@ -1480,101 +1537,447 @@ select option { background: #1c1c24; color: #fff; }
     padding: 0 5px;
 }
 
-.empty-hint { color: var(--text-muted); font-size: 13.5px; padding: 10px 2px; }
-
-.card-readonly .card-overlay { display: none; }
-
-/* --- پنجره چت --- */
-.chat-window {
-    position: fixed;
-    bottom: 16px;
-    inset-inline-end: 16px;
-    width: min(360px, calc(100vw - 32px));
-    height: min(480px, calc(100vh - 100px));
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    z-index: 1200;
-    backdrop-filter: blur(14px);
-}
-.chat-window.hidden { display: none; }
-
-.chat-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-}
-.chat-header img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
-.chat-partner-name { font-weight: 700; flex: 1; }
-
-.chat-messages {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.chat-bubble {
-    max-width: 78%;
-    padding: 8px 12px;
-    border-radius: 14px;
-    font-size: 14px;
-    line-height: 1.5;
-    word-break: break-word;
-    white-space: pre-wrap;
-}
-.chat-bubble.mine {
-    align-self: flex-end;
-    background: var(--border-red);
-    color: #fff;
-    border-bottom-left-radius: 4px;
-}
-.chat-bubble.theirs {
-    align-self: flex-start;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-main);
-    border-bottom-right-radius: 4px;
-}
-
-.chat-input-row {
-    display: flex;
-    gap: 8px;
-    padding: 10px 10px calc(10px + var(--safe-bottom));
-    border-top: 1px solid var(--border-color);
-    flex-shrink: 0;
-}
-.chat-input-row input {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    padding: 10px 14px;
-    color: var(--text-main);
-}
-.chat-input-row button {
-    border-radius: 50%;
-    width: 42px;
-    height: 42px;
-    flex-shrink: 0;
-    padding: 0;
+@media (max-width: 900px) {
+    .chat-app-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: unset;
+    }
+    .chat-list-col { max-width: none; order: 1; }
+    .chat-panel-col { order: 2; height: min(560px, 75vh); }
+    .chat-list-scroll { max-height: 320px; }
 }
 
 @media (max-width: 600px) {
-    .chat-window {
-        bottom: calc(65px + var(--safe-bottom));
-        inset-inline-end: 0;
-        width: 100vw;
-        height: calc(100dvh - 65px - var(--safe-bottom) - 56px);
-        border-radius: 16px 16px 0 0;
+    .chat-panel-col { height: min(520px, 68vh); }
+    .chat-bubble2 { max-width: 82%; }
+}
+
+/* ========================================================
+   داشبورد
+======================================================== */
+.dash-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(240px, 27%, 300px);
+    gap: 18px;
+    align-items: start;
+}
+.dash-main { min-width: 0; }
+
+.dash-toolbar { display: flex; align-items: center; gap: 10px; }
+
+.dash-search {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dash-search:focus-within {
+    border-color: var(--border-red);
+    box-shadow: 0 0 15px var(--border-red-glow);
+}
+.dash-search i { color: var(--text-muted); }
+.dash-search input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    padding: 12px 0;
+    font-size: 0.92rem;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.dash-sort {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    padding: 11px 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    outline: none;
+    cursor: pointer;
+}
+.dash-sort:focus { border-color: var(--border-red); }
+
+.dash-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.dash-filter-buttons { display: flex; flex-direction: column; gap: 10px; }
+.dash-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 13px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.dash-filter-btn i { width: 20px; text-align: center; color: var(--border-red); }
+.dash-filter-btn:hover { background: rgba(229, 9, 20, 0.15); border-color: var(--border-red); }
+.dash-filter-btn.active {
+    background: rgba(229, 9, 20, 0.25);
+    border-color: var(--border-red);
+    box-shadow: 0 0 15px var(--border-red-glow);
+}
+
+.dash-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.dash-stats-grid .stat-card {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    gap: 6px;
+    min-height: 96px;
+}
+.dash-stats-grid .stat-card div { align-items: center; }
+.dash-stats-grid .stat-card span { font-size: 1.4rem; }
+.dash-stats-grid .stat-card .stat-card-title { font-size: 0.85rem; }
+
+.stat-card-btn {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+}
+.stat-card-btn:hover {
+    background: rgba(255, 215, 0, 0.08);
+    border-color: rgba(255, 215, 0, 0.45);
+    transform: translateY(-2px);
+}
+.stat-card-btn i { color: var(--accent-gold); }
+
+/* نمودار فعالیت روزانه */
+.dash-activity {
+    border: 1px solid var(--border-red);
+    background: rgba(229, 9, 20, 0.06);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.dash-activity-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dash-activity-head h3 { font-size: 0.88rem; display: flex; align-items: center; gap: 8px; }
+.dash-activity-head h3 i { color: var(--border-red); }
+.activity-total { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+
+.activity-chart { display: flex; align-items: stretch; gap: 8px; }
+.activity-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.activity-count { font-size: 0.68rem; height: 14px; line-height: 14px; color: var(--text-main); }
+.activity-bar-wrap { height: 100px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.activity-bar {
+    width: 100%;
+    max-width: 26px;
+    min-height: 4px;
+    border-radius: 6px 6px 2px 2px;
+    background: rgba(229, 9, 20, 0.5);
+    transform-origin: bottom;
+    animation: barGrow 0.5s ease-out both;
+    transition: background 0.2s ease;
+}
+.activity-col:hover .activity-bar { background: #ff3b45; }
+.activity-col.is-today .activity-bar { background: var(--border-red); box-shadow: 0 0 10px var(--border-red-glow); }
+.activity-col.is-empty .activity-bar { background: rgba(255, 255, 255, 0.14); }
+.activity-day { font-size: 0.72rem; color: var(--text-muted); }
+.activity-col.is-today .activity-day { color: #fff; font-weight: bold; }
+.activity-hint { width: 100%; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 34px 6px; line-height: 1.9; }
+
+@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* برچسب وضعیت روی کارت‌ها (وقتی همه‌ی ذخیره‌شده‌ها نمایش داده می‌شود) */
+.status-chip.status-watching { border-color: var(--accent-gold); color: var(--accent-gold); }
+.status-chip.status-watched { border-color: var(--online-green); color: #6ee7a5; }
+.status-chip.status-watchlist { border-color: #6db3ff; color: #6db3ff; }
+
+/* ========================================================
+   اجتماع
+======================================================== */
+.community-wrap { max-width: 680px; margin: 0 auto; }
+.community-title { text-align: center; margin-top: 4px; }
+.community-title i { color: var(--border-red); }
+.community-subtitle { text-align: center; }
+
+.community-login-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 22px 14px;
+}
+.community-login-hint .btn-primary-red { flex: none; }
+.community-login-hint.hidden { display: none; }
+
+.post-composer {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.post-composer.hidden { display: none; }
+.post-composer textarea {
+    width: 100%;
+    min-height: 84px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.92rem;
+    line-height: 1.8;
+    resize: vertical;
+    outline: none;
+}
+.post-composer textarea:focus { border-color: var(--border-red); }
+.post-composer-actions { display: flex; align-items: center; gap: 10px; }
+.post-attach-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.25s ease, border-color 0.25s ease;
+}
+.post-attach-btn:hover { border-color: var(--border-red); background: rgba(229, 9, 20, 0.15); }
+#postSubmitBtn { flex: none; margin-inline-start: auto; padding: 9px 22px; }
+#postSubmitBtn:disabled { opacity: 0.6; cursor: wait; }
+
+.post-media-preview { position: relative; border-radius: 10px; overflow: hidden; background: #000; }
+.post-media-preview.hidden { display: none; }
+.post-media-preview img,
+.post-media-preview video { display: block; width: 100%; max-height: 320px; object-fit: contain; }
+.post-media-preview .preview-remove {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    cursor: pointer;
+}
+.post-media-preview .preview-remove:hover { background: var(--border-red); }
+
+.post-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 16px;
+}
+.post-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.post-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #1c1c24; flex-shrink: 0; }
+.post-author { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.post-author-name {
+    background: none;
+    border: none;
+    padding: 0;
+    width: fit-content;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.92rem;
+    text-align: right;
+    cursor: pointer;
+}
+.post-author-name:hover { color: var(--border-red); }
+.post-time { font-size: 0.72rem; color: var(--text-muted); }
+.post-body { white-space: pre-wrap; word-break: break-word; line-height: 1.9; font-size: 0.92rem; margin-bottom: 10px; }
+.post-media {
+    display: block;
+    width: 100%;
+    max-height: 520px;
+    object-fit: contain;
+    background: #000;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+img.post-media { cursor: zoom-in; }
+.post-actions { display: flex; gap: 12px; }
+.post-like-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.post-like-btn:hover { border-color: var(--border-red); color: #fff; }
+.post-like-btn.liked { color: var(--border-red); border-color: var(--border-red); background: rgba(229, 9, 20, 0.12); }
+.load-more-posts { display: block; margin: 4px auto 10px; flex: none; }
+.load-more-posts.hidden { display: none; }
+
+
+/* ========================================================
+   آخرین فعالیت‌ها (سمت راست جستجو و داشبورد)
+======================================================== */
+.recent-panel {
+    background: linear-gradient(180deg, rgba(35, 5, 8, 0.95) 0%, rgba(10, 3, 4, 0.98) 100%);
+    border: 1px solid rgba(229, 9, 20, 0.2);
+    border-radius: 14px;
+    min-width: 0;
+    padding: 20px;
+    border-radius: 16px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.filter-box { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+.filter-box input,
+.filter-box select {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+}
+.filter-box input:focus,
+.filter-box select:focus { border-color: var(--border-red); }
+
+.section-title { display: flex; align-items: center; gap: 10px; color: var(--border-red); margin-bottom: 10px; }
+.section-title h2 { font-size: 1.05rem; }
+
+.recent-list { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+
+.recent-list .card {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 90px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 4px solid var(--border-red);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.recent-list .card:hover {
+    transform: translateX(-4px);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+.recent-list .card .poster-img { width: 55px; height: 80px; border-radius: 6px; flex-shrink: 0; }
+.recent-list .card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding: 0;
+}
+.recent-list .card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.recent-list .card-note {
+    font-size: 0.7rem;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    opacity: 0.8;
+}
+.recent-list .card .btn-delete {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    background: rgba(229, 9, 20, 0.2);
+    border: 1px solid var(--border-red);
+    color: #ff4d4d;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+.recent-list .card:hover .btn-delete,
+.recent-list .card .btn-delete:focus-visible { opacity: 1; }
+@media (hover: none) { .recent-list .card .btn-delete { opacity: 1; } }
+
+/* تبلت */
+@media (max-width: 1100px) {
+    .dash-layout { grid-template-columns: minmax(0, 1fr) 250px; }
+}
+
+/* ========================================================
+   داشبورد و اجتماع در موبایل
+======================================================== */
+@media (max-width: 768px) {
+    /* ترتیب: دکمه‌ها ← لیست فیلم‌ها ← آمار ← نمودار */
+    .dash-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .dash-side { display: contents; }
+    .dash-filter-buttons { order: 1; flex-direction: row; gap: 8px; }
+    .dash-main { order: 2; }
+    .dash-stats-grid { order: 3; }
+    .dash-activity { order: 4; }
+
+    .dash-filter-btn {
+        flex: 1;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px 4px;
+        font-size: 0.75rem;
+        text-align: center;
+    }
+    .dash-toolbar { flex-direction: column; align-items: stretch; }
+    .dash-sort { width: 100%; border-radius: 12px; }
+    .post-card { padding: 12px; }
+
+    .dashboard-container > .recent-panel {
+        order: 2;
+        max-height: 360px;
+        border-radius: 12px;
+        padding: 14px;
     }
 }
